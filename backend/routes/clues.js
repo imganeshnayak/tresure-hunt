@@ -33,10 +33,21 @@ router.post('/reorder', auth, async (req, res) => {
         const { orderedIds } = req.body; // Array of _id strings in new order
         if (!Array.isArray(orderedIds)) return res.status(400).json({ message: 'orderedIds must be an array' });
 
-        const updates = orderedIds.map((id, index) =>
-            Clue.findByIdAndUpdate(id, { level: index + 1 }, { new: true })
-        );
-        await Promise.all(updates);
+        // Robust reordering logic: level field has 'unique: true' index.
+        // We must update in two phases to avoid temporary 'Duplicate Key' errors.
+
+        // Phase 1: Clear current values by setting to temporary negative levels
+        const validIds = orderedIds.filter(id => id && id.length > 5);
+
+        await Promise.all(validIds.map((id, index) =>
+            Clue.findByIdAndUpdate(id, { level: -(index + 1) })
+        ));
+
+        // Phase 2: Set final sequential levels
+        await Promise.all(validIds.map((id, index) =>
+            Clue.findByIdAndUpdate(id, { level: index + 1 })
+        ));
+
         res.json({ message: 'Clues reordered successfully' });
     } catch (err) {
         res.status(500).json({ message: err.message });

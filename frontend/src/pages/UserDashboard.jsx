@@ -15,6 +15,7 @@ const UserDashboard = () => {
         clues,
         startHunt,
         submitAnswer,
+        scanDecoy,
         leaderboard,
         loading
     } = useGame();
@@ -30,14 +31,17 @@ const UserDashboard = () => {
     // Handle initial link scan (from phone camera)
     useEffect(() => {
         const unlock = searchParams.get('unlock');
+        const decoy = searchParams.get('decoy');
+
         if (unlock && !isNaN(unlock)) {
             const level = parseInt(unlock);
-            // Only trigger if we aren't already on this level or if we just arrived
             if (gameState.currentLevel !== level || gameState.status === 'idle') {
                 startHunt(level);
-                // Clear the param so it doesn't re-trigger on refresh
                 setSearchParams({}, { replace: true });
             }
+        } else if (decoy) {
+            scanDecoy(decoy);
+            setSearchParams({}, { replace: true });
         }
     }, [searchParams, gameState.currentLevel, gameState.status, startHunt, setSearchParams]);
 
@@ -87,11 +91,16 @@ const UserDashboard = () => {
     const handleScanSuccess = (decodedText) => {
         setIsScanning(false);
         const unlockParam = decodedText.split('unlock=')[1];
+        const decoyParam = decodedText.split('decoy=')[1];
+
         if (unlockParam) {
             const level = unlockParam.split('&')[0];
             startHunt(parseInt(level));
             setFeedback({ type: 'success', message: `Station ${level} Linked!` });
             setTimeout(() => setFeedback(null), 3000);
+        } else if (decoyParam) {
+            const decoyId = decoyParam.split('&')[0];
+            scanDecoy(decoyId);
         } else {
             if (!isNaN(decodedText)) {
                 startHunt(parseInt(decodedText));

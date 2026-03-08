@@ -276,21 +276,20 @@ const UserDashboard = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="flex-center"
-                        style={{ height: '60vh' }}
+                        style={{ display: 'flex', flexDirection: 'column', gap: '2rem', alignItems: 'center' }}
                     >
-                        <div className="premium-card" style={{ padding: '4rem', textAlign: 'center', maxWidth: '550px' }}>
+                        <div className="premium-card" style={{ padding: '4rem 3rem', textAlign: 'center', maxWidth: '550px' }}>
                             <div style={{ marginBottom: '2.5rem' }}>
                                 <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 3 }}>
                                     <Play size={64} color="var(--amber-gold)" style={{ marginLeft: '8px' }} />
                                 </motion.div>
                             </div>
-                            <h2 style={{ fontSize: '2.2rem', fontWeight: '800', marginBottom: '1rem' }}>SQUAD READY</h2>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', marginBottom: '3.5rem', lineHeight: '1.6' }}>
-                                The grid is mapped. Your mission parameters are finalized. Await the signal to commence.
+                            <h2 style={{ fontSize: '2.2rem', fontWeight: '800', marginBottom: '1rem' }}>MISSION READY</h2>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', marginBottom: '3rem', lineHeight: '1.6' }}>
+                                The grid is mapped. Locate the physical QR nodes to unlock mission data and progress through the levels.
                             </p>
                             <div style={{ display: 'flex', gap: '1.2rem' }}>
-                                <button className="gold-button" onClick={startHunt} style={{ flex: 1.5, height: '60px' }}>
+                                <button className="gold-button" onClick={() => startHunt(1)} style={{ flex: 1.5, height: '60px' }}>
                                     INITIALIZE JOURNEY
                                 </button>
                                 <button
@@ -299,9 +298,19 @@ const UserDashboard = () => {
                                     style={{ padding: 0, cursor: 'pointer', flex: 1, display: 'flex', alignItems: 'center', gap: '0.8rem', justifyContent: 'center', height: '60px', background: 'transparent' }}
                                 >
                                     <QrCode size={20} />
-                                    SCAN GRID
+                                    SCAN NODE
                                 </button>
                             </div>
+                        </div>
+
+                        <div className="premium-card" style={{ padding: '2rem', maxWidth: '550px', width: '100%', border: '1px dashed var(--glass-border)' }}>
+                            <h3 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--amber-gold)', marginBottom: '1.5rem', letterSpacing: '1px' }}>HOW TO PLAY</h3>
+                            <ul style={{ textAlign: 'left', color: 'var(--text-secondary)', fontSize: '0.9rem', paddingLeft: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                                <li>Scan the <strong>Mission QR</strong> at each location to unlock the secret question.</li>
+                                <li>Answer the question correctly to reveal the <strong>next coordinates</strong>.</li>
+                                <li><strong>Anti-Cheat:</strong> You must visit locations in order. Scanning ahead will trigger a system lock!</li>
+                                <li>Beware of <strong>Ghost Traps</strong> (Decoy QRs) scattered around the field!</li>
+                            </ul>
                         </div>
                     </motion.div>
                 ) : (
@@ -419,22 +428,26 @@ const UserDashboard = () => {
                         exit={{ opacity: 0 }}
                         style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(15px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}
                     >
-                        <div className="premium-card" style={{ padding: '2rem', width: '90%', maxWidth: '420px', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                                <div style={{ textAlign: 'left' }}>
-                                    <h2 style={{ fontSize: '1.2rem', fontWeight: '800', letterSpacing: '1px' }}>SCANNER_ACTIVE</h2>
-                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600' }}>ALIGN QR CODE TO DECRYPT</p>
-                                </div>
-                                <button
-                                    onClick={() => setIsScanning(false)}
-                                    style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '8px', borderRadius: '8px' }}
-                                >
-                                    <X size={20} />
-                                </button>
+                        <div className="premium-card" style={{ padding: '2rem', width: '95%', maxWidth: '450px', textAlign: 'center', position: 'relative' }}>
+                            <button
+                                onClick={() => setIsScanning(false)}
+                                style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', cursor: 'pointer', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                                <X size={20} />
+                            </button>
+
+                            <div style={{ marginBottom: '2rem' }}>
+                                <h2 style={{ fontSize: '1.2rem', fontWeight: '800', letterSpacing: '2px', color: 'var(--amber-gold)' }}>SCANNER_ACTIVE</h2>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600', marginTop: '0.4rem' }}>ALIGN QR CODE TO DECRYPT NODE</p>
                             </div>
-                            <div style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--amber-gold)', boxShadow: '0 0 20px rgba(255,170,0,0.15)', background: '#000' }}>
+
+                            <div style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid var(--glass-border)', background: '#000' }}>
                                 <QrScanner onScanSuccess={handleScanSuccess} />
                             </div>
+
+                            <p style={{ marginTop: '1.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                Point your camera at the physical mission marker.
+                            </p>
                         </div>
                     </motion.div>
                 )}

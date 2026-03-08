@@ -43,21 +43,30 @@ router.post('/reorder', auth, async (req, res) => {
     }
 });
 
-// Add/Update Clue
-router.post('/', async (req, res) => {
+// Add/Update Clue (Admin only)
+router.post('/', auth, async (req, res) => {
     try {
-        const { level, type, mcqQuestion, mcqOptions, mcqAnswer, clueText, published } = req.body;
-        let clue = await Clue.findOne({ level });
-        if (clue) {
-            clue.type = type || 'mcq';
-            clue.mcqQuestion = mcqQuestion;
-            clue.mcqOptions = mcqOptions || [];
-            clue.mcqAnswer = mcqAnswer ? mcqAnswer.trim() : "";
-            clue.clueText = clueText;
-            clue.published = published;
+        if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access denied' });
+        const { _id, level, type, mcqQuestion, mcqOptions, mcqAnswer, clueText, published } = req.body;
+
+        let clue;
+        if (_id) {
+            // Editing an existing clue — identify by permanent _id, NOT by level
+            clue = await Clue.findById(_id);
+            if (!clue) return res.status(404).json({ message: 'Clue not found' });
         } else {
-            clue = new Clue({ level, type: type || 'mcq', mcqQuestion, mcqOptions: mcqOptions || [], mcqAnswer: mcqAnswer ? mcqAnswer.trim() : "", clueText, published });
+            // Creating a brand-new clue — always make a fresh document
+            clue = new Clue({});
         }
+
+        clue.level = level;
+        clue.type = type || 'mcq';
+        clue.mcqQuestion = mcqQuestion;
+        clue.mcqOptions = mcqOptions || [];
+        clue.mcqAnswer = mcqAnswer ? mcqAnswer.trim() : '';
+        clue.clueText = clueText;
+        clue.published = published;
+
         await clue.save();
         res.json(clue);
     } catch (err) {
@@ -65,10 +74,10 @@ router.post('/', async (req, res) => {
     }
 });
 
-// Delete Clue
-router.delete('/:id', async (req, res) => {
+// Delete Clue (Admin only)
+router.delete('/:id', auth, async (req, res) => {
     try {
-        console.log(`BACKEND: Received delete request for ID: ${req.params.id}`);
+        if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access denied' });
         await Clue.findByIdAndDelete(req.params.id);
         res.json({ message: 'Clue deleted successfully' });
     } catch (err) {

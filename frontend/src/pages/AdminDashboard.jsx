@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createRoot } from 'react-dom/client';
 import { useAuth } from '../context/AuthContext';
 import { useGame } from '../context/GameContext';
 import api from '../api';
@@ -132,10 +133,6 @@ const AdminDashboard = () => {
             return;
         }
 
-        // We render each QR onto a hidden canvas and download sequentially
-        const { QRCodeSVG } = await import('qrcode.react');
-        const { createRoot } = await import('react-dom/client');
-        const React = (await import('react')).default;
 
         // Helper: render a QR SVG to a PNG blob
         const renderQR = (url) => new Promise((resolve) => {
@@ -215,14 +212,16 @@ const AdminDashboard = () => {
     };
 
     const handleAddClue = () => {
-        const nextLevel = clues.length + 1;
+        // Use max existing level + 1 to always be safe (never collides after reorders)
+        const maxLevel = localClues.reduce((max, c) => Math.max(max, c.level || 0), 0);
         const newClue = {
-            level: nextLevel,
+            // No _id → backend will create a brand new document
+            level: maxLevel + 1,
             type: 'mcq',
-            mcqQuestion: "The riddle or question...",
-            mcqOptions: ["Option 1", "Option 2", "Option 3", "Option 4"],
-            mcqAnswer: "Option 1",
-            clueText: "Where to go next?",
+            mcqQuestion: 'The riddle or question...',
+            mcqOptions: ['Option 1', 'Option 2', 'Option 3', 'Option 4'],
+            mcqAnswer: 'Option 1',
+            clueText: 'Where to go next?',
             published: false
         };
         setEditingClue(newClue);

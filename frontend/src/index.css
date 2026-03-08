@@ -1,19 +1,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Pirata+One&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Minimal Dark Palette */
-  --bg-primary: #0c0c0c;
-  --bg-panel: #141414;
-  --text-primary: #f0f0f0;
-  --text-secondary: #999999;
-  --pirate-gold: #ffaa00;
-  --accent-glow: rgba(255, 170, 0, 0.4);
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-  --amber-gold: #ffaa00;
-  --deep-wood: #111111;
-  --iron-grey: #2a2a2a;
+  /* High Contrast Dark Palette */
+  --bg-primary: #050505;
+  /* Darker background for more depth */
+  --bg-panel: #0f0f0f;
+  --text-primary: #ffffff;
+  --text-secondary: #b3b3b3;
+  /* Brightened for better visibility */
+  --pirate-gold: #ffcc00;
+  /* More vibrant gold */
+  --accent-glow: rgba(255, 204, 0, 0.5);
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --card-shadow: 0 12px 48px rgba(0, 0, 0, 0.8);
+  --amber-gold: #ffcc00;
+  --deep-wood: #0a0a0a;
+  --iron-grey: #222222;
 }
 
 * {
@@ -32,6 +35,8 @@ body {
   min-height: 100vh;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  -webkit-font-smoothing: antialiased;
+  /* Added for sharper text */
 }
 
 h1,
@@ -40,6 +45,13 @@ h3,
 .pirate-font {
   font-family: 'Pirata One', cursive;
   letter-spacing: 2px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  /* Added depth */
+}
+
+strong {
+  color: var(--amber-gold);
+  font-weight: 700;
 }
 
 /* Background Texture Effect */

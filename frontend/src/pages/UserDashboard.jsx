@@ -1,0 +1,446 @@
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useGame } from '../context/GameContext';
+
+import { Timer, Trophy, Shield, Play, Send, CheckCircle, XCircle, Lightbulb, QrCode, X, Skull, AlertTriangle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import QrScanner from '../components/QrScanner';
+
+const UserDashboard = () => {
+    const { user, logout } = useAuth();
+    const { gameState, startHunt, clues, submitAnswer, scanDecoy, useHint, leaderboard } = useGame();
+    const location = useLocation();
+    const [feedback, setFeedback] = useState(null);
+    const [elapsedTime, setElapsedTime] = useState(0);
+    const [showHint, setShowHint] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);
+    const [textAnswer, setTextAnswer] = useState("");
+
+    useEffect(() => {
+        const query = new URLSearchParams(location.search);
+        const unlock = query.get('unlock');
+        const decoyId = query.get('decoy');
+        if (decoyId) {
+            scanDecoy(decoyId);
+        } else if (unlock && gameState.status === 'idle') {
+            startHunt(parseInt(unlock));
+        }
+    }, [location.search, gameState.status, startHunt, scanDecoy]);
+
+
+    useEffect(() => {
+        let interval;
+        if (gameState.status === 'playing' && gameState.startTime) {
+            interval = setInterval(() => {
+                setElapsedTime(Math.floor((Date.now() - gameState.startTime) / 1000));
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [gameState.status, gameState.startTime]);
+
+    const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const currentClue = clues.find(c => c.level === gameState.currentLevel);
+    const isHintUsed = gameState.hintsUsed.includes(gameState.currentLevel);
+
+
+    const handleOptionClick = async (option) => {
+        const result = await submitAnswer(option, user.username);
+        if (result.success) {
+            setFeedback({ type: 'success', message: result.finished ? 'The Treasure is Yours!' : 'Correct! The scroll reveals a new secret...' });
+            setTimeout(() => setFeedback(null), 3000);
+        } else {
+            setFeedback({ type: 'error', message: 'Wrong choice, matey! Try again.' });
+            setTimeout(() => setFeedback(null), 2000);
+        }
+    };
+
+    const handleTextSubmit = async (e) => {
+        if (e) e.preventDefault();
+        if (!textAnswer.trim()) return;
+        const result = await submitAnswer(textAnswer, user.username);
+        if (result.success) {
+            setFeedback({ type: 'success', message: result.finished ? 'Success! The mission is complete.' : 'Correct! Accessing next node...' });
+            setTextAnswer("");
+            setTimeout(() => setFeedback(null), 3000);
+        } else {
+            setFeedback({ type: 'error', message: 'Incorrect sequence. Recalibrate and try again.' });
+            setTimeout(() => setFeedback(null), 2000);
+        }
+    };
+
+    const handleUseHint = () => {
+        useHint(gameState.currentLevel);
+        setShowHint(true);
+    };
+
+    const handleScanSuccess = async (decodedText) => {
+        setIsScanning(false);
+        try {
+            const url = new URL(decodedText);
+            const unlock = url.searchParams.get('unlock');
+            const decoyId = url.searchParams.get('decoy');
+            if (decoyId) {
+                await scanDecoy(decoyId);
+            } else if (unlock) {
+                startHunt(parseInt(unlock));
+                setFeedback({ type: 'success', message: `Location Found! Brace yourself, Level ${unlock}...` });
+                setTimeout(() => setFeedback(null), 3000);
+            } else {
+                setFeedback({ type: 'error', message: 'Invalid Treasure QR Code!' });
+                setTimeout(() => setFeedback(null), 3000);
+            }
+        } catch (e) {
+            // Not a URL, maybe it's just the level number?
+            if (!isNaN(decodedText)) {
+                startHunt(parseInt(decodedText));
+                setFeedback({ type: 'success', message: `Location Verified! Level ${decodedText} Unlocked.` });
+                setTimeout(() => setFeedback(null), 3000);
+            } else {
+                setFeedback({ type: 'error', message: 'That be no map I recognize!' });
+                setTimeout(() => setFeedback(null), 3000);
+            }
+        }
+    };
+
+    if (gameState.status === 'finished') {
+        return (
+            <div className="flex-center" style={{ minHeight: '100vh', padding: '2rem', flexDirection: 'column', background: 'var(--bg-primary)' }}>
+                <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="premium-card"
+                    style={{ maxWidth: '600px', width: '100%', padding: '4rem 3rem', textAlign: 'center', marginBottom: '3rem' }}
+                >
+                    <Trophy size={80} color="var(--amber-gold)" style={{ marginBottom: '2rem', filter: 'drop-shadow(0 0 20px var(--accent-glow))' }} />
+                    <h1 style={{ fontSize: '4rem', fontWeight: '900', letterSpacing: '-2px', marginBottom: '1rem', color: 'var(--amber-gold)' }}>VICTORY</h1>
+                    <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', marginBottom: '3rem' }}>The treasure has been claimed. Your journey into legend begins here.</p>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '3rem' }}>
+                        <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
+                            <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.5rem', letterSpacing: '1px' }}>TIME TAKEN</p>
+                            <p style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--amber-gold)' }}>{formatTime(elapsedTime)}</p>
+                        </div>
+                        <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
+                            <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.5rem', letterSpacing: '1px' }}>FINAL SCORE</p>
+                            <p style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--amber-gold)' }}>{gameState.score}</p>
+                        </div>
+                    </div>
+
+                    <button className="gold-button" style={{ width: '100%', height: '60px', fontSize: '1.1rem' }} onClick={logout}>RETIRE TO SHORE (LOGOUT)</button>
+                </motion.div>
+
+                {leaderboard.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="premium-card"
+                        style={{ maxWidth: '600px', width: '100%', padding: '2rem' }}
+                    >
+                        <h2 style={{ textAlign: 'center', marginBottom: '2rem', fontSize: '1.4rem', fontWeight: '800', letterSpacing: '1px', color: 'var(--text-secondary)' }}>HALL OF FAME</h2>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
+                            <thead>
+                                <tr style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--glass-border)' }}>
+                                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>RANK</th>
+                                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>TEAM</th>
+                                    <th style={{ padding: '1rem', textAlign: 'right', fontWeight: '600' }}>SCORE</th>
+                                    <th style={{ padding: '1rem', textAlign: 'right', fontWeight: '600' }}>TIME</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {leaderboard.slice(0, 5).map((entry, i) => (
+                                    <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                        <td style={{ padding: '1rem', fontWeight: '700', color: i === 0 ? 'var(--amber-gold)' : 'inherit' }}>#{i + 1}</td>
+                                        <td style={{ padding: '1rem', fontWeight: '600' }}>{entry.username.toUpperCase()}</td>
+                                        <td style={{ padding: '1rem', textAlign: 'right' }}>{entry.score}</td>
+                                        <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-secondary)' }}>{formatTime(entry.time)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </motion.div>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <div className="container" style={{ minHeight: '100vh', padding: '3rem 1rem' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4rem' }}>
+                <div>
+                    <h2 style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-secondary)', letterSpacing: '2px', marginBottom: '0.5rem' }}>
+                        {user.role === 'admin' ? 'COMMANDER' : 'OPERATIVE'}
+                    </h2>
+                    <h1 style={{ fontSize: '2.8rem', fontWeight: '900', color: 'var(--amber-gold)', letterSpacing: '-1px' }}>
+                        TEAM {user.username.toUpperCase()}
+                    </h1>
+                </div>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    <div className="premium-card" style={{ padding: '0.6rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.8rem', borderRadius: '12px' }}>
+                        <Timer size={18} color="var(--amber-gold)" />
+                        <span style={{ fontFamily: 'Inter', fontWeight: '700', fontSize: '1rem', tabularNums: true }}>{formatTime(elapsedTime)}</span>
+                    </div>
+                    <div className="premium-card" style={{ padding: '0.6rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.8rem', borderRadius: '12px' }}>
+                        <Shield size={18} color="var(--amber-gold)" />
+                        <span style={{ fontWeight: '700', fontSize: '1rem' }}>STATION {gameState.currentLevel}</span>
+                    </div>
+                    <button
+                        className="gold-button"
+                        onClick={() => setIsScanning(true)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0 1.5rem', height: '52px' }}
+                    >
+                        <QrCode size={20} />
+                        SCAN
+                    </button>
+                    <button onClick={logout} title="Logout" style={{ width: '52px', height: '52px', borderRadius: '12px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <X size={20} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Decoy QR Troll Screen */}
+            <AnimatePresence>
+                {gameState.decoyMessage && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(15px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}
+                        onClick={() => startHunt(gameState.currentLevel)}
+                    >
+                        <motion.div
+                            className="premium-card"
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            style={{ padding: '4rem 3rem', textAlign: 'center', maxWidth: '450px', border: '1px solid rgba(255, 170, 0, 0.2)' }}
+                        >
+                            <motion.div
+                                animate={{ y: [0, -10, 0] }}
+                                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                                style={{ marginBottom: '2rem' }}
+                            >
+                                <Skull size={80} color="var(--amber-gold)" style={{ opacity: 0.8 }} />
+                            </motion.div>
+                            <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: 'var(--amber-gold)', marginBottom: '1.5rem', letterSpacing: '-1px' }}>SYSTEM BREACH</h2>
+                            <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', marginBottom: '3rem', lineHeight: '1.6' }}>
+                                "{gameState.decoyMessage}"
+                            </p>
+                            <button className="gold-button" style={{ width: '100%' }} onClick={(e) => { e.stopPropagation(); startHunt(gameState.currentLevel); }}>
+                                RELINK TO STATION {gameState.currentLevel}
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Sequential Lock Screen */}
+            <AnimatePresence>
+                {gameState.lockedMessage && !gameState.decoyMessage && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(10px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}
+                    >
+                        <motion.div
+                            className="premium-card"
+                            initial={{ scale: 0.95 }}
+                            animate={{ scale: 1 }}
+                            style={{ padding: '4rem 3rem', textAlign: 'center', maxWidth: '450px', border: '1px solid var(--amber-gold)' }}
+                        >
+                            <div style={{ marginBottom: '2rem' }}>
+                                <AlertTriangle size={80} color="var(--amber-gold)" />
+                            </div>
+                            <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: 'var(--amber-gold)', marginBottom: '1.5rem', letterSpacing: '-1px' }}>ACCESS DENIED</h2>
+                            <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', marginBottom: '3rem', lineHeight: '1.6' }}>
+                                {gameState.lockedMessage}
+                            </p>
+                            <button className="gold-button" style={{ width: '100%' }} onClick={() => startHunt(gameState.currentLevel)}>
+                                RETURN TO STATION {gameState.currentLevel}
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence mode="wait">
+                {gameState.status === 'idle' ? (
+                    <motion.div
+                        key="idle"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="flex-center"
+                        style={{ height: '60vh' }}
+                    >
+                        <div className="premium-card" style={{ padding: '4rem', textAlign: 'center', maxWidth: '550px' }}>
+                            <div style={{ marginBottom: '2.5rem' }}>
+                                <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 3 }}>
+                                    <Play size={64} color="var(--amber-gold)" style={{ marginLeft: '8px' }} />
+                                </motion.div>
+                            </div>
+                            <h2 style={{ fontSize: '2.2rem', fontWeight: '800', marginBottom: '1rem' }}>SQUAD READY</h2>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', marginBottom: '3.5rem', lineHeight: '1.6' }}>
+                                The grid is mapped. Your mission parameters are finalized. Await the signal to commence.
+                            </p>
+                            <div style={{ display: 'flex', gap: '1.2rem' }}>
+                                <button className="gold-button" onClick={startHunt} style={{ flex: 1.5, height: '60px' }}>
+                                    INITIALIZE JOURNEY
+                                </button>
+                                <button
+                                    className="premium-card"
+                                    onClick={() => setIsScanning(true)}
+                                    style={{ padding: 0, cursor: 'pointer', flex: 1, display: 'flex', alignItems: 'center', gap: '0.8rem', justifyContent: 'center', height: '60px', background: 'transparent' }}
+                                >
+                                    <QrCode size={20} />
+                                    SCAN GRID
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        key="playing"
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                    >
+                        <div className="premium-card" style={{ padding: '4rem 3rem', position: 'relative' }}>
+                            <div style={{ position: 'absolute', top: '2.5rem', left: '3rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--amber-gold)', boxShadow: '0 0 10px var(--amber-gold)' }}></div>
+                                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', letterSpacing: '2px' }}>MISSION PHASE {gameState.currentLevel}</span>
+                            </div>
+
+                            {gameState.revealedClue ? (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    style={{ textAlign: 'center', marginTop: '2rem' }}
+                                >
+                                    <div style={{ marginBottom: '2.5rem' }}>
+                                        <CheckCircle size={64} color="var(--amber-gold)" style={{ filter: 'drop-shadow(0 0 15px var(--accent-glow))' }} />
+                                    </div>
+                                    <h3 style={{ fontSize: '2.5rem', fontWeight: '900', color: 'var(--amber-gold)', marginBottom: '1rem', letterSpacing: '-1px' }}>DATA DECRYPTED</h3>
+                                    <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', marginBottom: '3rem' }}>The next coordinate has been extracted:</p>
+                                    <div className="premium-card" style={{ padding: '3rem 2rem', background: 'rgba(255,170,0,0.03)', border: '1px dashed var(--amber-gold)' }}>
+                                        <p style={{ fontSize: '2rem', fontWeight: '600', color: '#fff', fontStyle: 'italic', lineHeight: '1.4' }}>
+                                            "{gameState.revealedClue}"
+                                        </p>
+                                    </div>
+                                    <p style={{ marginTop: '3rem', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+                                        Move to the specified location and await further instructions.
+                                    </p>
+                                </motion.div>
+                            ) : (
+                                <div style={{ marginTop: '2rem' }}>
+                                    <h3 style={{ fontSize: '2rem', fontWeight: '600', marginBottom: '4rem', lineHeight: '1.5', color: '#fff' }}>
+                                        "{currentClue?.mcqQuestion}"
+                                    </h3>
+
+                                    {currentClue?.type === 'text' ? (
+                                        <form onSubmit={handleTextSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '3rem' }}>
+                                            <input
+                                                className="input-field"
+                                                value={textAnswer}
+                                                onChange={e => setTextAnswer(e.target.value)}
+                                                placeholder="Enter the transmission key..."
+                                                style={{ width: '100%', padding: '1.5rem', fontSize: '1.2rem', textAlign: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '12px', color: '#fff' }}
+                                                autoFocus
+                                            />
+                                            <button type="submit" className="gold-button" style={{ height: '60px', fontSize: '1.1rem', letterSpacing: '2px', fontWeight: '800' }}>
+                                                EXECUTE VALIDATION
+                                            </button>
+                                        </form>
+                                    ) : (
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem', marginBottom: '3rem' }}>
+                                            {currentClue?.mcqOptions.map((option, index) => (
+                                                <button
+                                                    key={index}
+                                                    className="premium-card"
+                                                    onClick={() => handleOptionClick(option)}
+                                                    style={{
+                                                        padding: '2rem',
+                                                        cursor: 'pointer',
+                                                        textAlign: 'center',
+                                                        fontSize: '1.1rem',
+                                                        fontWeight: '600',
+                                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                        background: 'transparent'
+                                                    }}
+                                                >
+                                                    {option}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <div style={{ display: 'flex', justifyContent: 'center', minHeight: '30px' }}>
+                                        <AnimatePresence>
+                                            {feedback && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0 }}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', color: feedback.type === 'success' ? '#4caf50' : '#ff4444' }}
+                                                >
+                                                    {feedback.type === 'success' ? <CheckCircle size={20} /> : <XCircle size={20} />}
+                                                    <span style={{ fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', fontSize: '0.9rem' }}>{feedback.message}</span>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ marginTop: '4rem', textAlign: 'center' }}>
+                            <button
+                                onClick={logout}
+                                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.8rem' }}
+                            >
+                                TERMINATE SESSION
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {isScanning && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(15px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}
+                    >
+                        <div className="premium-card" style={{ padding: '2rem', width: '90%', maxWidth: '420px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                                <div style={{ textAlign: 'left' }}>
+                                    <h2 style={{ fontSize: '1.2rem', fontWeight: '800', letterSpacing: '1px' }}>SCANNER_ACTIVE</h2>
+                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600' }}>ALIGN QR CODE TO DECRYPT</p>
+                                </div>
+                                <button
+                                    onClick={() => setIsScanning(false)}
+                                    style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '8px', borderRadius: '8px' }}
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--amber-gold)', boxShadow: '0 0 20px rgba(255,170,0,0.15)', background: '#000' }}>
+                                <QrScanner onScanSuccess={handleScanSuccess} />
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
+
+export default UserDashboard;

@@ -357,10 +357,9 @@ const AdminDashboard = () => {
                                         </button>
                                         <button
                                             onClick={() => {
-                                                const token = localStorage.getItem('treasure_token');
-                                                const tokenParam = token ? `&t=${encodeURIComponent(token)}` : '';
                                                 const baseUrl = import.meta.env.VITE_FRONTEND_URL || window.location.origin;
-                                                setSelectedQR({ ...clue, url: `${baseUrl}/dashboard?unlock=${clue.level}${tokenParam}` });
+                                                // Use clue._id (permanent) not level (changes on reorder)
+                                                setSelectedQR({ ...clue, url: `${baseUrl}/dashboard?unlock=${clue._id}` });
                                             }}
                                             title="View QR"
                                             className="flex-center"

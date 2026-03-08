@@ -29,23 +29,36 @@ const UserDashboard = () => {
     const [feedback, setFeedback] = useState(null);
     const [textAnswer, setTextAnswer] = useState('');
 
-    // Handle initial link scan (from phone camera) — runs only when searchParams changes
+    // Re-usable: resolve an 'unlock' param that may be a MongoDB _id or a legacy level number
+    const resolveUnlockParam = (unlock) => {
+        if (!unlock || unlock.trim() === '') return null;
+        const isObjectId = /^[a-f\d]{24}$/i.test(unlock);
+        if (isObjectId) {
+            const clue = clues.find(c => c._id === unlock);
+            return clue ? clue.level : null; // null = clues not loaded yet, retry on next render
+        }
+        const n = parseInt(unlock);
+        return isNaN(n) ? null : n;
+    };
+
+    // Handle initial link scan (from phone camera)
     useEffect(() => {
         const unlock = searchParams.get('unlock');
         const decoy = searchParams.get('decoy');
 
-        if (unlock && !isNaN(unlock) && unlock.trim() !== '') {
-            const level = parseInt(unlock);
-            if (gameState.currentLevel !== level || gameState.status === 'idle') {
+        if (unlock && unlock.trim() !== '') {
+            const level = resolveUnlockParam(unlock);
+            if (level !== null) {
                 startHunt(level);
+                setSearchParams({}, { replace: true });
             }
-            setSearchParams({}, { replace: true });
+            // If level is null, clues aren't loaded yet — wait for re-render with clues in deps
         } else if (decoy && decoy.trim() !== '') {
             scanDecoy(decoy);
             setSearchParams({}, { replace: true });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchParams]); // Only re-run when URL params change
+    }, [searchParams, clues]); // clues needed to resolve _id → current level
 
     useEffect(() => {
         let interval;
@@ -92,28 +105,35 @@ const UserDashboard = () => {
 
     const handleScanSuccess = (decodedText) => {
         setIsScanning(false);
-        const unlockParam = decodedText.split('unlock=')[1];
-        const decoyParam = decodedText.split('decoy=')[1];
 
-        if (unlockParam) {
-            const level = unlockParam.split('&')[0];
-            startHunt(parseInt(level));
-            setFeedback({ type: 'success', message: `Station ${level} Linked!` });
-            setTimeout(() => setFeedback(null), 3000);
-        } else if (decoyParam) {
-            const decoyId = decoyParam.split('&')[0];
-            scanDecoy(decoyId);
-        } else {
-            // Guard against empty/null decoded text
-            const trimmed = decodedText?.trim();
-            if (trimmed && !isNaN(trimmed)) {
-                startHunt(parseInt(trimmed));
-                setFeedback({ type: 'success', message: `Location Verified! Level ${trimmed} Unlocked.` });
+        // Parse URL params from QR content
+        let unlockRaw = null;
+        let decoyRaw = null;
+        try {
+            // Try to parse as a full URL first
+            const url = new URL(decodedText);
+            unlockRaw = url.searchParams.get('unlock');
+            decoyRaw = url.searchParams.get('decoy');
+        } catch {
+            // Plain text fallback (legacy raw level number)
+            unlockRaw = decodedText?.trim();
+        }
+
+        if (unlockRaw) {
+            const level = resolveUnlockParam(unlockRaw);
+            if (level !== null) {
+                startHunt(level);
+                setFeedback({ type: 'success', message: `Station Node Linked!` });
                 setTimeout(() => setFeedback(null), 3000);
-            } else if (trimmed) {
-                setFeedback({ type: 'error', message: 'That be no map I recognize!' });
+            } else {
+                setFeedback({ type: 'error', message: 'QR recognised but station data is still loading. Try again.' });
                 setTimeout(() => setFeedback(null), 3000);
             }
+        } else if (decoyRaw) {
+            scanDecoy(decoyRaw.split('&')[0]);
+        } else {
+            setFeedback({ type: 'error', message: 'That be no map I recognize!' });
+            setTimeout(() => setFeedback(null), 3000);
         }
     };
 

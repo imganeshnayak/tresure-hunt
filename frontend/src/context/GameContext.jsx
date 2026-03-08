@@ -63,10 +63,11 @@ export const GameProvider = ({ children }) => {
         }));
 
         if (user) {
+            // Only reset score on a fresh start (idle), not when relinking
             await api.post('/game/progress', {
                 level: level,
-                score: 0,
-                hintsUsed: []
+                score: gameState.status === 'idle' ? 0 : gameState.score,
+                hintsUsed: gameState.status === 'idle' ? [] : gameState.hintsUsed
             });
         }
     };
@@ -180,7 +181,6 @@ export const GameProvider = ({ children }) => {
             return false;
         }
         try {
-            console.log(`DELETING CLUE AT URL: /clues/${id}`);
             await api.delete(`/clues/${id}`);
             await fetchData();
             return true;

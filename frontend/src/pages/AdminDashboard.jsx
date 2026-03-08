@@ -41,8 +41,13 @@ const AdminDashboard = () => {
     };
 
     const handleDeleteDecoy = async (id) => {
-        await api.delete(`/decoys/${id}`);
-        setDecoys(prev => prev.filter(d => d._id !== id));
+        if (!window.confirm('Remove this Ghost Trap permanently?')) return;
+        try {
+            await api.delete(`/decoys/${id}`);
+            setDecoys(prev => prev.filter(d => d._id !== id));
+        } catch (err) {
+            alert(`Failed to delete decoy: ${err.response?.data?.message || err.message}`);
+        }
     };
 
     const toggleDecoyPublish = (d) => handleSaveDecoy({ ...d, published: !d.published });

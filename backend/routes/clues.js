@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const Clue = require('../models/Clue');
-// Add middleware for admin auth later
+const auth = require('../middleware/auth');
 
-// Get all clues (Admin)
-router.get('/', async (req, res) => {
+// Get all clues (Admin only - includes answers)
+router.get('/', auth, async (req, res) => {
     try {
+        if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access denied' });
         const clues = await Clue.find().sort('level');
         res.json(clues);
     } catch (err) {

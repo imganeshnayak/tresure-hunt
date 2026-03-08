@@ -5,6 +5,12 @@ import { AlertCircle } from 'lucide-react';
 const QrScanner = ({ onScanSuccess, onScanError }) => {
     const [error, setError] = useState(null);
     const scannerRef = useRef(null);
+    const onScanSuccessRef = useRef(onScanSuccess);
+
+    // Keep the callback ref up-to-date without restarting the scanner
+    useEffect(() => {
+        onScanSuccessRef.current = onScanSuccess;
+    }, [onScanSuccess]);
 
     useEffect(() => {
         const scanner = new Html5Qrcode("reader");
@@ -27,10 +33,11 @@ const QrScanner = ({ onScanSuccess, onScanError }) => {
                         aspectRatio: 1.0
                     },
                     (decodedText) => {
-                        onScanSuccess(decodedText);
+                        // Use ref to always call the latest version of the callback
+                        onScanSuccessRef.current(decodedText);
                     },
-                    (errorMessage) => {
-                        // Regular scanning errors are ignorable
+                    () => {
+                        // Regular scanning errors are ignorable (no QR in frame yet)
                     }
                 );
             } catch (err) {
@@ -47,13 +54,14 @@ const QrScanner = ({ onScanSuccess, onScanError }) => {
         startScanner();
 
         return () => {
-            if (scannerRef.current && scannerRef.current.isScanning) {
-                scannerRef.current.stop().then(() => {
-                    scannerRef.current.clear();
-                }).catch(e => console.log("Stop error", e));
+            const s = scannerRef.current;
+            if (s && s.isScanning) {
+                s.stop()
+                    .then(() => s.clear())
+                    .catch(e => console.log("Scanner stop error:", e));
             }
         };
-    }, []);
+    }, []); // Only mount/unmount — callback handled via ref
 
     return (
         <div style={{ width: '100%', position: 'relative' }}>

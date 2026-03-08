@@ -4,7 +4,7 @@ import { useGame } from '../context/GameContext';
 import { useAuth } from '../context/AuthContext';
 import {
     QrCode, Timer, Shield, Trophy, CheckCircle, XCircle,
-    Skull, AlertTriangle, Play, X, LogOut
+    Skull, AlertTriangle, Play, X, LogOut, MapPin
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import QrScanner from '../components/QrScanner';
@@ -29,22 +29,23 @@ const UserDashboard = () => {
     const [feedback, setFeedback] = useState(null);
     const [textAnswer, setTextAnswer] = useState('');
 
-    // Handle initial link scan (from phone camera)
+    // Handle initial link scan (from phone camera) — runs only when searchParams changes
     useEffect(() => {
         const unlock = searchParams.get('unlock');
         const decoy = searchParams.get('decoy');
 
-        if (unlock && !isNaN(unlock)) {
+        if (unlock && !isNaN(unlock) && unlock.trim() !== '') {
             const level = parseInt(unlock);
             if (gameState.currentLevel !== level || gameState.status === 'idle') {
                 startHunt(level);
-                setSearchParams({}, { replace: true });
             }
-        } else if (decoy) {
+            setSearchParams({}, { replace: true });
+        } else if (decoy && decoy.trim() !== '') {
             scanDecoy(decoy);
             setSearchParams({}, { replace: true });
         }
-    }, [searchParams, gameState.currentLevel, gameState.status, startHunt, setSearchParams]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]); // Only re-run when URL params change
 
     useEffect(() => {
         let interval;
@@ -103,11 +104,13 @@ const UserDashboard = () => {
             const decoyId = decoyParam.split('&')[0];
             scanDecoy(decoyId);
         } else {
-            if (!isNaN(decodedText)) {
-                startHunt(parseInt(decodedText));
-                setFeedback({ type: 'success', message: `Location Verified! Level ${decodedText} Unlocked.` });
+            // Guard against empty/null decoded text
+            const trimmed = decodedText?.trim();
+            if (trimmed && !isNaN(trimmed)) {
+                startHunt(parseInt(trimmed));
+                setFeedback({ type: 'success', message: `Location Verified! Level ${trimmed} Unlocked.` });
                 setTimeout(() => setFeedback(null), 3000);
-            } else {
+            } else if (trimmed) {
                 setFeedback({ type: 'error', message: 'That be no map I recognize!' });
                 setTimeout(() => setFeedback(null), 3000);
             }
@@ -178,7 +181,11 @@ const UserDashboard = () => {
                                             <td style={{ padding: '1rem', fontWeight: '700', color: i === 0 ? 'var(--amber-gold)' : 'inherit' }}>#{i + 1}</td>
                                             <td style={{ padding: '1rem', fontWeight: '600' }}>{entry.username.toUpperCase()}</td>
                                             <td style={{ padding: '1rem', textAlign: 'right' }}>{entry.score}</td>
-                                            <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-secondary)' }}>{formatTime(entry.time)}</td>
+                                            <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-secondary)' }}>
+                                                {entry.finishTime && entry.startTime
+                                                    ? formatTime(Math.floor((new Date(entry.finishTime) - new Date(entry.startTime)) / 1000))
+                                                    : '---'}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>

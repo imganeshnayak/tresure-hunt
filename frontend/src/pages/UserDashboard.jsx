@@ -251,8 +251,17 @@ const UserDashboard = () => {
                             <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', marginBottom: '3rem', lineHeight: '1.6' }}>
                                 "{gameState.decoyMessage}"
                             </p>
-                            <button className="gold-button" style={{ width: '100%' }} onClick={(e) => { e.stopPropagation(); startHunt(gameState.currentLevel); }}>
+                            <button className="gold-button" style={{ width: '100%' }} onClick={(e) => {
+                                e.stopPropagation();
+                                startHunt(gameState.currentLevel);
+                            }}>
                                 RELINK TO STATION {gameState.currentLevel}
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); startHunt(gameState.currentLevel); }}
+                                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', marginTop: '1.5rem', cursor: 'pointer', fontSize: '0.8rem', textTransform: 'uppercase' }}
+                            >
+                                DISMISS ALERT
                             </button>
                         </motion.div>
                     </motion.div>
@@ -281,8 +290,17 @@ const UserDashboard = () => {
                             <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', marginBottom: '3rem', lineHeight: '1.6' }}>
                                 {gameState.lockedMessage}
                             </p>
-                            <button className="gold-button" style={{ width: '100%' }} onClick={() => startHunt(gameState.currentLevel)}>
+                            <button className="gold-button" style={{ width: '100%' }} onClick={(e) => {
+                                e.stopPropagation();
+                                startHunt(gameState.currentLevel);
+                            }}>
                                 RETURN TO STATION {gameState.currentLevel}
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); startHunt(gameState.currentLevel); }}
+                                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', marginTop: '1.5rem', cursor: 'pointer', fontSize: '0.8rem', textTransform: 'uppercase' }}
+                            >
+                                CLOSE ACCESS DENIED
                             </button>
                         </motion.div>
                     </motion.div>

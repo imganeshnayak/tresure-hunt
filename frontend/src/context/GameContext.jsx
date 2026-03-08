@@ -57,7 +57,9 @@ export const GameProvider = ({ children }) => {
             status: 'playing',
             currentLevel: level,
             hintsUsed: [],
-            revealedClue: null // Reset for new level
+            revealedClue: null,
+            decoyMessage: null,
+            lockedMessage: null
         }));
 
         if (user) {

@@ -20,6 +20,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  max-width: 100%;
 }
 
 body {
@@ -29,6 +30,8 @@ body {
   line-height: 1.6;
   overflow-x: hidden;
   min-height: 100vh;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 h1,
@@ -69,6 +72,7 @@ body::before {
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: var(--card-shadow);
+  width: 100%;
 }
 
 .gold-button {
@@ -83,16 +87,16 @@ body::before {
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .gold-button:hover {
   transform: translateY(-2px);
   filter: brightness(1.1);
   box-shadow: 0 4px 20px var(--accent-glow);
-}
-
-.gold-button:active {
-  transform: translateY(0);
 }
 
 .input-field {
@@ -103,13 +107,13 @@ body::before {
   border-radius: 10px;
   outline: none;
   transition: all 0.3s ease;
-  font-size: 0.95rem;
+  font-size: 1rem;
+  width: 100%;
 }
 
 .input-field:focus {
   border-color: var(--amber-gold);
   background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 4px rgba(255, 170, 0, 0.1);
 }
 
 /* Utilities */
@@ -122,7 +126,66 @@ body::before {
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 2.5rem 1.5rem;
+}
+
+/* Responsive Utilities */
+.mobile-stack {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+  .container {
+    padding: 1.5rem 1rem;
+  }
+
+  .mobile-stack {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 1.5rem !important;
+  }
+
+  h1 {
+    font-size: 2rem !important;
+  }
+
+  h2 {
+    font-size: 1.5rem !important;
+  }
+
+  h3 {
+    font-size: 1.25rem !important;
+  }
+
+  .premium-card {
+    padding: 1.25rem;
+  }
+
+  .gold-button {
+    width: 100%;
+  }
+
+  .grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .mobile-hide {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.7rem !important;
+  }
+
+  .container {
+    padding: 1rem 0.75rem;
+  }
 }
 
 /* QR Scanner Refinements */
@@ -136,39 +199,6 @@ body::before {
 #reader img[alt="Info icon"],
 #reader img[alt="Camera menu icon"] {
   display: none !important;
-}
-
-#reader__camera_selection {
-  background: var(--bg-primary) !important;
-  color: var(--text-primary) !important;
-  border: 1px solid var(--glass-border) !important;
-  border-radius: 8px !important;
-  padding: 8px !important;
-  margin-bottom: 15px !important;
-  width: 100% !important;
-}
-
-#reader button {
-  background: var(--amber-gold) !important;
-  color: var(--deep-wood) !important;
-  border: none !important;
-  border-radius: 8px !important;
-  padding: 10px 20px !important;
-  font-weight: 700 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 1px !important;
-  cursor: pointer !important;
-  transition: all 0.3s ease !important;
-}
-
-#reader button:hover {
-  box-shadow: 0 0 15px var(--accent-glow) !important;
-  transform: translateY(-2px) !important;
-}
-
-#reader__scan_region {
-  border-radius: 12px !important;
-  overflow: hidden !important;
 }
 
 #reader__scan_region video {

@@ -27,8 +27,8 @@ const Login = () => {
     };
 
     return (
-        <div className="flex-center" style={{ minHeight: '100vh', padding: '1rem', background: 'var(--bg-primary)' }}>
-            <div className="premium-card" style={{ width: '100%', maxWidth: '400px', padding: '4rem 2.5rem', textAlign: 'center' }}>
+        <div className="flex-center" style={{ minHeight: '100vh', padding: '1.5rem', background: 'var(--bg-primary)' }}>
+            <div className="premium-card responsive-login-card" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem 2rem', textAlign: 'center' }}>
                 <div style={{ marginBottom: '3.5rem' }}>
                     <div style={{ marginBottom: '1.5rem', display: 'inline-block' }}>
                         <Skull size={64} color="var(--amber-gold)" style={{ filter: 'drop-shadow(0 0 15px var(--accent-glow))' }} />

@@ -107,16 +107,16 @@ const AdminDashboard = () => {
 
     return (
         <div className="container" style={{ minHeight: '100vh', padding: '3rem 1rem' }}>
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4rem' }}>
-                <div>
+            <header className="mobile-stack" style={{ marginBottom: '4rem' }}>
+                <div style={{ flex: 1 }}>
                     <h1 style={{ color: 'var(--amber-gold)', fontSize: '2.8rem', fontWeight: '800', letterSpacing: '-1px', marginBottom: '0.5rem' }}>OFFICER'S QUARTERS</h1>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>Command center for the great treasure hunt</p>
                 </div>
-                <button className="gold-button" style={{ background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)' }} onClick={logout}>Abandon Ship (Logout)</button>
+                <button className="gold-button" style={{ background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', height: '48px' }} onClick={logout}>Abandon Ship (Logout)</button>
             </header>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '3rem', padding: '4px', background: 'rgba(255,255,255,0.03)', borderRadius: '14px' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '3rem', padding: '4px', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', flexWrap: 'wrap' }} className="mobile-stack">
                 <button
                     onClick={() => setActiveTab('clues')}
                     style={{
@@ -196,7 +196,7 @@ const AdminDashboard = () => {
 
                         <div style={{ display: 'grid', gap: '1.2rem' }}>
                             {clues.map((clue) => (
-                                <div key={clue._id || clue.level} className="premium-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div key={clue._id || clue.level} className="premium-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
                                     <div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.6rem' }}>
                                             <span style={{ color: 'var(--amber-gold)', fontWeight: '800', fontSize: '0.9rem', letterSpacing: '1px' }}>LANDMARK {clue.level}</span>
@@ -321,43 +321,45 @@ const AdminDashboard = () => {
                     >
                         <h2 style={{ fontSize: '1.8rem', fontWeight: '700', marginBottom: '2rem' }}>Tracking the Fleet</h2>
                         <div className="premium-card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.95rem' }}>
-                                <thead style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid var(--glass-border)' }}>
-                                    <tr>
-                                        <th style={{ padding: '1.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>TEAM NAME</th>
-                                        <th style={{ padding: '1.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>POSITION</th>
-                                        <th style={{ padding: '1.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>START TIME</th>
-                                        <th style={{ padding: '1.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>STATUS</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {allTeams.length === 0 ? (
+                            <div style={{ overflowX: 'auto', width: '100%' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.95rem', minWidth: '600px' }}>
+                                    <thead style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid var(--glass-border)' }}>
                                         <tr>
-                                            <td colSpan="4" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No crew members on the horizon.</td>
+                                            <th style={{ padding: '1.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>TEAM NAME</th>
+                                            <th style={{ padding: '1.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>POSITION</th>
+                                            <th style={{ padding: '1.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>START TIME</th>
+                                            <th style={{ padding: '1.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>STATUS</th>
                                         </tr>
-                                    ) : allTeams.map(team => (
-                                        <tr key={team._id} style={{ borderBottom: '1px solid var(--glass-border)', transition: 'background 0.2s ease' }}>
-                                            <td style={{ padding: '1.5rem', fontWeight: '700' }}>{team.username.toUpperCase()}</td>
-                                            <td style={{ padding: '1.5rem' }}>
-                                                <span style={{ color: 'var(--amber-gold)', fontWeight: '600' }}>
-                                                    {team.status === 'finished' ? '🏁 FINISHED' : `📍 Level ${team.currentLevel}`}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '1.5rem', color: 'var(--text-secondary)' }}>{formatTime(team.startTime)}</td>
-                                            <td style={{ padding: '1.5rem' }}>
-                                                <span style={{
-                                                    color: team.status === 'finished' ? '#4caf50' : 'var(--amber-gold)',
-                                                    fontSize: '0.8rem',
-                                                    fontWeight: '700',
-                                                    letterSpacing: '0.5px'
-                                                }}>
-                                                    {team.status.toUpperCase()}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {allTeams.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="4" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No crew members on the horizon.</td>
+                                            </tr>
+                                        ) : allTeams.map(team => (
+                                            <tr key={team._id} style={{ borderBottom: '1px solid var(--glass-border)', transition: 'background 0.2s ease' }}>
+                                                <td style={{ padding: '1.5rem', fontWeight: '700' }}>{team.username.toUpperCase()}</td>
+                                                <td style={{ padding: '1.5rem' }}>
+                                                    <span style={{ color: 'var(--amber-gold)', fontWeight: '600' }}>
+                                                        {team.status === 'finished' ? '🏁 FINISHED' : `📍 Level ${team.currentLevel}`}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '1.5rem', color: 'var(--text-secondary)' }}>{formatTime(team.startTime)}</td>
+                                                <td style={{ padding: '1.5rem' }}>
+                                                    <span style={{
+                                                        color: team.status === 'finished' ? '#4caf50' : 'var(--amber-gold)',
+                                                        fontSize: '0.8rem',
+                                                        fontWeight: '700',
+                                                        letterSpacing: '0.5px'
+                                                    }}>
+                                                        {team.status.toUpperCase()}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </motion.div>
                 )}
@@ -366,8 +368,8 @@ const AdminDashboard = () => {
             {/* MCQ Editor Modal */}
             <AnimatePresence>
                 {editingClue && (
-                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-                        <div className="premium-card" style={{ width: '90%', maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--glass-border)' }}>
+                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '1rem' }}>
+                        <div className="premium-card" style={{ width: '100%', maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--glass-border)', padding: '2rem 1.5rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
                                 <h2 style={{ fontSize: '1.8rem', fontWeight: '800' }}>Edit Landmark {editingClue.level}</h2>
                                 <button onClick={() => setEditingClue(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><X size={24} /></button>

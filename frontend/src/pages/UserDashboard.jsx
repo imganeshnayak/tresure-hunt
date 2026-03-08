@@ -1,39 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { useGame } from '../context/GameContext';
-
-import { Timer, Trophy, Shield, Play, Send, CheckCircle, XCircle, Lightbulb, QrCode, X, Skull, AlertTriangle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import {
+    QrCode, Timer, Shield, Trophy, CheckCircle, XCircle,
+    Skull, AlertTriangle, Play, X, LogOut
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import QrScanner from '../components/QrScanner';
 
 const UserDashboard = () => {
-    const { user, logout } = useAuth();
-    const { gameState, startHunt, clues, submitAnswer, scanDecoy, useHint, leaderboard } = useGame();
-    const location = useLocation();
-    const [feedback, setFeedback] = useState(null);
-    const [elapsedTime, setElapsedTime] = useState(0);
-    const [showHint, setShowHint] = useState(false);
+    const {
+        gameState,
+        currentClue,
+        leaderboard,
+        startHunt,
+        submitAnswer,
+        logout
+    } = useGame();
+    const { user } = useAuth();
     const [isScanning, setIsScanning] = useState(false);
-    const [textAnswer, setTextAnswer] = useState("");
-
-    useEffect(() => {
-        const query = new URLSearchParams(location.search);
-        const unlock = query.get('unlock');
-        const decoyId = query.get('decoy');
-        if (decoyId) {
-            scanDecoy(decoyId);
-        } else if (unlock && gameState.status === 'idle') {
-            startHunt(parseInt(unlock));
-        }
-    }, [location.search, gameState.status, startHunt, scanDecoy]);
-
+    const [elapsedTime, setElapsedTime] = useState(0);
+    const [feedback, setFeedback] = useState(null);
+    const [textAnswer, setTextAnswer] = useState('');
 
     useEffect(() => {
         let interval;
         if (gameState.status === 'playing' && gameState.startTime) {
             interval = setInterval(() => {
-                setElapsedTime(Math.floor((Date.now() - gameState.startTime) / 1000));
+                const start = new Date(gameState.startTime).getTime();
+                const now = new Date().getTime();
+                setElapsedTime(Math.floor((now - start) / 1000));
             }, 1000);
         }
         return () => clearInterval(interval);
@@ -42,61 +38,43 @@ const UserDashboard = () => {
     const formatTime = (seconds) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const currentClue = clues.find(c => c.level === gameState.currentLevel);
-    const isHintUsed = gameState.hintsUsed.includes(gameState.currentLevel);
-
-
     const handleOptionClick = async (option) => {
-        const result = await submitAnswer(option, user.username);
-        if (result.success) {
-            setFeedback({ type: 'success', message: result.finished ? 'The Treasure is Yours!' : 'Correct! The scroll reveals a new secret...' });
+        const res = await submitAnswer(option);
+        if (res.success) {
+            setFeedback({ type: 'success', message: 'Transmission Verified!' });
             setTimeout(() => setFeedback(null), 3000);
         } else {
-            setFeedback({ type: 'error', message: 'Wrong choice, matey! Try again.' });
-            setTimeout(() => setFeedback(null), 2000);
+            setFeedback({ type: 'error', message: 'Frequency Mismatch (Wrong Answer)' });
+            setTimeout(() => setFeedback(null), 3000);
         }
     };
 
     const handleTextSubmit = async (e) => {
-        if (e) e.preventDefault();
+        e.preventDefault();
         if (!textAnswer.trim()) return;
-        const result = await submitAnswer(textAnswer, user.username);
-        if (result.success) {
-            setFeedback({ type: 'success', message: result.finished ? 'Success! The mission is complete.' : 'Correct! Accessing next node...' });
-            setTextAnswer("");
+        const res = await submitAnswer(textAnswer.trim());
+        if (res.success) {
+            setFeedback({ type: 'success', message: 'Transmission Verified!' });
+            setTextAnswer('');
             setTimeout(() => setFeedback(null), 3000);
         } else {
-            setFeedback({ type: 'error', message: 'Incorrect sequence. Recalibrate and try again.' });
-            setTimeout(() => setFeedback(null), 2000);
+            setFeedback({ type: 'error', message: 'Access Key Rejected' });
+            setTimeout(() => setFeedback(null), 3000);
         }
     };
 
-    const handleUseHint = () => {
-        useHint(gameState.currentLevel);
-        setShowHint(true);
-    };
-
-    const handleScanSuccess = async (decodedText) => {
+    const handleScanSuccess = (decodedText) => {
         setIsScanning(false);
-        try {
-            const url = new URL(decodedText);
-            const unlock = url.searchParams.get('unlock');
-            const decoyId = url.searchParams.get('decoy');
-            if (decoyId) {
-                await scanDecoy(decoyId);
-            } else if (unlock) {
-                startHunt(parseInt(unlock));
-                setFeedback({ type: 'success', message: `Location Found! Brace yourself, Level ${unlock}...` });
-                setTimeout(() => setFeedback(null), 3000);
-            } else {
-                setFeedback({ type: 'error', message: 'Invalid Treasure QR Code!' });
-                setTimeout(() => setFeedback(null), 3000);
-            }
-        } catch (e) {
-            // Not a URL, maybe it's just the level number?
+        const unlockParam = decodedText.split('unlock=')[1];
+        if (unlockParam) {
+            const level = unlockParam.split('&')[0];
+            startHunt(parseInt(level));
+            setFeedback({ type: 'success', message: `Station ${level} Linked!` });
+            setTimeout(() => setFeedback(null), 3000);
+        } else {
             if (!isNaN(decodedText)) {
                 startHunt(parseInt(decodedText));
                 setFeedback({ type: 'success', message: `Location Verified! Level ${decodedText} Unlocked.` });
@@ -121,7 +99,7 @@ const UserDashboard = () => {
                     <h1 style={{ fontSize: '4rem', fontWeight: '900', letterSpacing: '-2px', marginBottom: '1rem', color: 'var(--amber-gold)' }}>VICTORY</h1>
                     <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', marginBottom: '3rem' }}>The treasure has been claimed. Your journey into legend begins here.</p>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '3rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '3rem' }} className="grid-2">
                         <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
                             <p style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.5rem', letterSpacing: '1px' }}>TIME TAKEN</p>
                             <p style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--amber-gold)' }}>{formatTime(elapsedTime)}</p>
@@ -140,29 +118,31 @@ const UserDashboard = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="premium-card"
-                        style={{ maxWidth: '600px', width: '100%', padding: '2rem' }}
+                        style={{ maxWidth: '600px', width: '100%' }}
                     >
-                        <h2 style={{ textAlign: 'center', marginBottom: '2rem', fontSize: '1.4rem', fontWeight: '800', letterSpacing: '1px', color: 'var(--text-secondary)' }}>HALL OF FAME</h2>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
-                            <thead>
-                                <tr style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--glass-border)' }}>
-                                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>RANK</th>
-                                    <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>TEAM</th>
-                                    <th style={{ padding: '1rem', textAlign: 'right', fontWeight: '600' }}>SCORE</th>
-                                    <th style={{ padding: '1rem', textAlign: 'right', fontWeight: '600' }}>TIME</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {leaderboard.slice(0, 5).map((entry, i) => (
-                                    <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                        <td style={{ padding: '1rem', fontWeight: '700', color: i === 0 ? 'var(--amber-gold)' : 'inherit' }}>#{i + 1}</td>
-                                        <td style={{ padding: '1rem', fontWeight: '600' }}>{entry.username.toUpperCase()}</td>
-                                        <td style={{ padding: '1rem', textAlign: 'right' }}>{entry.score}</td>
-                                        <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-secondary)' }}>{formatTime(entry.time)}</td>
+                        <h3 style={{ marginBottom: '2rem', textAlign: 'center' }}>HALL OF LEGENDS</h3>
+                        <div style={{ overflowX: 'auto', width: '100%' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '400px' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                        <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>RANK</th>
+                                        <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>TEAM</th>
+                                        <th style={{ padding: '1rem', textAlign: 'right', fontWeight: '600' }}>SCORE</th>
+                                        <th style={{ padding: '1rem', textAlign: 'right', fontWeight: '600' }}>TIME</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {leaderboard.slice(0, 5).map((entry, i) => (
+                                        <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                            <td style={{ padding: '1rem', fontWeight: '700', color: i === 0 ? 'var(--amber-gold)' : 'inherit' }}>#{i + 1}</td>
+                                            <td style={{ padding: '1rem', fontWeight: '600' }}>{entry.username.toUpperCase()}</td>
+                                            <td style={{ padding: '1rem', textAlign: 'right' }}>{entry.score}</td>
+                                            <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-secondary)' }}>{formatTime(entry.time)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </motion.div>
                 )}
             </div>
@@ -170,9 +150,9 @@ const UserDashboard = () => {
     }
 
     return (
-        <div className="container" style={{ minHeight: '100vh', padding: '3rem 1rem' }}>
+        <div className="container" style={{ minHeight: '100vh' }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4rem' }}>
+            <div className="mobile-stack" style={{ marginBottom: '4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h2 style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-secondary)', letterSpacing: '2px', marginBottom: '0.5rem' }}>
                         {user.role === 'admin' ? 'COMMANDER' : 'OPERATIVE'}
@@ -181,25 +161,25 @@ const UserDashboard = () => {
                         TEAM {user.username.toUpperCase()}
                     </h1>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <div className="premium-card" style={{ padding: '0.6rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.8rem', borderRadius: '12px' }}>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div className="premium-card" style={{ padding: '0.6rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.8rem', borderRadius: '12px', width: 'auto' }}>
                         <Timer size={18} color="var(--amber-gold)" />
                         <span style={{ fontFamily: 'Inter', fontWeight: '700', fontSize: '1rem', tabularNums: true }}>{formatTime(elapsedTime)}</span>
                     </div>
-                    <div className="premium-card" style={{ padding: '0.6rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.8rem', borderRadius: '12px' }}>
+                    <div className="premium-card" style={{ padding: '0.6rem 1.2rem', display: 'flex', alignItems: 'center', gap: '0.8rem', borderRadius: '12px', width: 'auto' }}>
                         <Shield size={18} color="var(--amber-gold)" />
                         <span style={{ fontWeight: '700', fontSize: '1rem' }}>STATION {gameState.currentLevel}</span>
                     </div>
                     <button
                         className="gold-button"
                         onClick={() => setIsScanning(true)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0 1.5rem', height: '52px' }}
+                        style={{ height: '52px', padding: '0 1.5rem' }}
                     >
                         <QrCode size={20} />
                         SCAN
                     </button>
                     <button onClick={logout} title="Logout" style={{ width: '52px', height: '52px', borderRadius: '12px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <X size={20} />
+                        <LogOut size={20} />
                     </button>
                 </div>
             </div>
@@ -288,7 +268,7 @@ const UserDashboard = () => {
                             <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', marginBottom: '3rem', lineHeight: '1.6' }}>
                                 The grid is mapped. Locate the physical QR nodes to unlock mission data and progress through the levels.
                             </p>
-                            <div style={{ display: 'flex', gap: '1.2rem' }}>
+                            <div style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
                                 <button className="gold-button" onClick={() => startHunt(1)} style={{ flex: 1.5, height: '60px' }}>
                                     INITIALIZE JOURNEY
                                 </button>
@@ -321,7 +301,7 @@ const UserDashboard = () => {
                         exit={{ opacity: 0, scale: 0.95 }}
                     >
                         <div className="premium-card" style={{ padding: '4rem 3rem', position: 'relative' }}>
-                            <div style={{ position: 'absolute', top: '2.5rem', left: '3rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                            <div style={{ position: 'absolute', top: '1.5rem', left: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
                                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--amber-gold)', boxShadow: '0 0 10px var(--amber-gold)' }}></div>
                                 <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', letterSpacing: '2px' }}>MISSION PHASE {gameState.currentLevel}</span>
                             </div>
@@ -337,8 +317,8 @@ const UserDashboard = () => {
                                     </div>
                                     <h3 style={{ fontSize: '2.5rem', fontWeight: '900', color: 'var(--amber-gold)', marginBottom: '1rem', letterSpacing: '-1px' }}>DATA DECRYPTED</h3>
                                     <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', marginBottom: '3rem' }}>The next coordinate has been extracted:</p>
-                                    <div className="premium-card" style={{ padding: '3rem 2rem', background: 'rgba(255,170,0,0.03)', border: '1px dashed var(--amber-gold)' }}>
-                                        <p style={{ fontSize: '2rem', fontWeight: '600', color: '#fff', fontStyle: 'italic', lineHeight: '1.4' }}>
+                                    <div className="premium-card" style={{ padding: '2rem', background: 'rgba(255,170,0,0.03)', border: '1px dashed var(--amber-gold)' }}>
+                                        <p style={{ fontSize: '1.5rem', fontWeight: '600', color: '#fff', fontStyle: 'italic', lineHeight: '1.4' }}>
                                             "{gameState.revealedClue}"
                                         </p>
                                     </div>
@@ -348,38 +328,37 @@ const UserDashboard = () => {
                                 </motion.div>
                             ) : (
                                 <div style={{ marginTop: '2rem' }}>
-                                    <h3 style={{ fontSize: '2rem', fontWeight: '600', marginBottom: '4rem', lineHeight: '1.5', color: '#fff' }}>
+                                    <h3 style={{ fontSize: '2rem', fontWeight: '600', marginBottom: '3rem', lineHeight: '1.5', color: '#fff' }}>
                                         "{currentClue?.mcqQuestion}"
                                     </h3>
 
                                     {currentClue?.type === 'text' ? (
-                                        <form onSubmit={handleTextSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '3rem' }}>
+                                        <form onSubmit={handleTextSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '2rem' }}>
                                             <input
                                                 className="input-field"
                                                 value={textAnswer}
                                                 onChange={e => setTextAnswer(e.target.value)}
                                                 placeholder="Enter the transmission key..."
-                                                style={{ width: '100%', padding: '1.5rem', fontSize: '1.2rem', textAlign: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '12px', color: '#fff' }}
+                                                style={{ textAlign: 'center', fontSize: '1.1rem' }}
                                                 autoFocus
                                             />
-                                            <button type="submit" className="gold-button" style={{ height: '60px', fontSize: '1.1rem', letterSpacing: '2px', fontWeight: '800' }}>
+                                            <button type="submit" className="gold-button" style={{ height: '60px', fontSize: '1rem', fontWeight: '800' }}>
                                                 EXECUTE VALIDATION
                                             </button>
                                         </form>
                                     ) : (
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem', marginBottom: '3rem' }}>
+                                        <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem', marginBottom: '2rem' }}>
                                             {currentClue?.mcqOptions.map((option, index) => (
                                                 <button
                                                     key={index}
                                                     className="premium-card"
                                                     onClick={() => handleOptionClick(option)}
                                                     style={{
-                                                        padding: '2rem',
+                                                        padding: '1.5rem',
                                                         cursor: 'pointer',
                                                         textAlign: 'center',
-                                                        fontSize: '1.1rem',
+                                                        fontSize: '1rem',
                                                         fontWeight: '600',
-                                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                                         background: 'transparent'
                                                     }}
                                                 >
@@ -408,7 +387,7 @@ const UserDashboard = () => {
                             )}
                         </div>
 
-                        <div style={{ marginTop: '4rem', textAlign: 'center' }}>
+                        <div style={{ marginTop: '3rem', textAlign: 'center' }}>
                             <button
                                 onClick={logout}
                                 style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.8rem' }}
@@ -426,17 +405,17 @@ const UserDashboard = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(15px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}
+                        style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '1rem' }}
                     >
-                        <div className="premium-card" style={{ padding: '2rem', width: '95%', maxWidth: '450px', textAlign: 'center', position: 'relative' }}>
+                        <div className="premium-card" style={{ width: '100%', maxWidth: '550px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--glass-border)', padding: '2rem 1.5rem' }}>
                             <button
                                 onClick={() => setIsScanning(false)}
-                                style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', cursor: 'pointer', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', cursor: 'pointer', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             >
                                 <X size={20} />
                             </button>
 
-                            <div style={{ marginBottom: '2rem' }}>
+                            <div style={{ marginBottom: '1.5rem' }}>
                                 <h2 style={{ fontSize: '1.2rem', fontWeight: '800', letterSpacing: '2px', color: 'var(--amber-gold)' }}>SCANNER_ACTIVE</h2>
                                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600', marginTop: '0.4rem' }}>ALIGN QR CODE TO DECRYPT NODE</p>
                             </div>

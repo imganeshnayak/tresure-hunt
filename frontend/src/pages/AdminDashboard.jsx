@@ -224,7 +224,8 @@ const AdminDashboard = () => {
                                             onClick={() => {
                                                 const token = localStorage.getItem('treasure_token');
                                                 const tokenParam = token ? `&t=${encodeURIComponent(token)}` : '';
-                                                setSelectedQR({ ...clue, url: `${window.location.origin}/dashboard?unlock=${clue.level}${tokenParam}` });
+                                                const baseUrl = import.meta.env.VITE_FRONTEND_URL || window.location.origin;
+                                                setSelectedQR({ ...clue, url: `${baseUrl}/dashboard?unlock=${clue.level}${tokenParam}` });
                                             }}
                                             title="View QR"
                                             className="flex-center"
@@ -289,7 +290,15 @@ const AdminDashboard = () => {
                                         <button onClick={() => setEditingDecoy(decoy)} title="Edit" className="flex-center" style={{ width: '40px', height: '40px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '10px', cursor: 'pointer', color: 'var(--text-secondary)' }}>
                                             <Edit2 size={18} />
                                         </button>
-                                        <button onClick={() => setSelectedQR({ url: `${window.location.origin}/dashboard?decoy=${decoy._id}`, label: decoy.label })} title="View QR" className="flex-center" style={{ width: '40px', height: '40px', background: 'rgba(255, 170, 0, 0.05)', border: '1px solid rgba(255, 170, 0, 0.2)', borderRadius: '10px', cursor: 'pointer', color: 'var(--amber-gold)' }}>
+                                        <button
+                                            onClick={() => {
+                                                const baseUrl = import.meta.env.VITE_FRONTEND_URL || window.location.origin;
+                                                setSelectedQR({ url: `${baseUrl}/dashboard?decoy=${decoy._id}`, label: decoy.label });
+                                            }}
+                                            title="View QR"
+                                            className="flex-center"
+                                            style={{ width: '40px', height: '40px', background: 'rgba(255, 170, 0, 0.05)', border: '1px solid rgba(255, 170, 0, 0.2)', borderRadius: '10px', cursor: 'pointer', color: 'var(--amber-gold)' }}
+                                        >
                                             <QrCode size={18} />
                                         </button>
                                         <button onClick={() => toggleDecoyPublish(decoy)} title={decoy.published ? "Deactivate" : "Activate"} className="flex-center" style={{ width: '40px', height: '40px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '10px', cursor: 'pointer', color: 'var(--text-secondary)' }}>

@@ -190,6 +190,14 @@ export const GameProvider = ({ children }) => {
         }
     };
 
+    const clearAlerts = () => {
+        setGameState(prev => ({
+            ...prev,
+            decoyMessage: null,
+            lockedMessage: null
+        }));
+    };
+
     return (
         <GameContext.Provider value={{
             clues,
@@ -204,6 +212,7 @@ export const GameProvider = ({ children }) => {
             loading,
             updateClue,
             deleteClue,
+            clearAlerts,
             refreshData: fetchData
         }}>
             {children}

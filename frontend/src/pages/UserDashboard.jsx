@@ -17,7 +17,8 @@ const UserDashboard = () => {
         submitAnswer,
         scanDecoy,
         leaderboard,
-        loading
+        loading,
+        clearAlerts
     } = useGame();
     const { user, logout } = useAuth();
 
@@ -232,7 +233,7 @@ const UserDashboard = () => {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(15px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}
-                        onClick={() => startHunt(gameState.currentLevel)}
+                        onClick={() => clearAlerts()}
                     >
                         <motion.div
                             className="premium-card"
@@ -253,12 +254,12 @@ const UserDashboard = () => {
                             </p>
                             <button className="gold-button" style={{ width: '100%' }} onClick={(e) => {
                                 e.stopPropagation();
-                                startHunt(gameState.currentLevel);
+                                clearAlerts();
                             }}>
                                 RELINK TO STATION {gameState.currentLevel}
                             </button>
                             <button
-                                onClick={(e) => { e.stopPropagation(); startHunt(gameState.currentLevel); }}
+                                onClick={(e) => { e.stopPropagation(); clearAlerts(); }}
                                 style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', marginTop: '1.5rem', cursor: 'pointer', fontSize: '0.8rem', textTransform: 'uppercase' }}
                             >
                                 DISMISS ALERT
@@ -292,12 +293,12 @@ const UserDashboard = () => {
                             </p>
                             <button className="gold-button" style={{ width: '100%' }} onClick={(e) => {
                                 e.stopPropagation();
-                                startHunt(gameState.currentLevel);
+                                clearAlerts();
                             }}>
                                 RETURN TO STATION {gameState.currentLevel}
                             </button>
                             <button
-                                onClick={(e) => { e.stopPropagation(); startHunt(gameState.currentLevel); }}
+                                onClick={(e) => { e.stopPropagation(); clearAlerts(); }}
                                 style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', marginTop: '1.5rem', cursor: 'pointer', fontSize: '0.8rem', textTransform: 'uppercase' }}
                             >
                                 CLOSE ACCESS DENIED

@@ -49,21 +49,37 @@ export const GameProvider = ({ children }) => {
         fetchData();
     }, [user]);
 
-    const startHunt = (level = 1) => {
-        // Only update LOCAL state when scanning a QR code.
-        // The backend currentLevel ONLY advances after a correct answer via /game/verify-answer.
-        // This prevents QR URL spoofing (scanning a later station's QR to skip ahead).
-        setGameState(prev => ({
-            ...prev,
-            // Only set startTime on a fresh game start (when idle)
-            startTime: prev.startTime || Date.now(),
-            status: 'playing',
-            currentLevel: level,
-            hintsUsed: prev.hintsUsed || [],
-            revealedClue: null,
-            decoyMessage: null,
-            lockedMessage: null
-        }));
+    const startHunt = async (level = 1) => {
+        try {
+            // Call backend FIRST — it enforces sequential order.
+            // If the user scans a future station's QR, backend returns 403 locked.
+            await api.post('/game/progress', {
+                level,
+                score: gameState.score,
+                hintsUsed: gameState.hintsUsed
+            });
+
+            // Backend accepted — safe to update local UI state
+            setGameState(prev => ({
+                ...prev,
+                startTime: prev.startTime || Date.now(),
+                status: 'playing',
+                currentLevel: level,
+                hintsUsed: prev.hintsUsed || [],
+                revealedClue: null,
+                decoyMessage: null,
+                lockedMessage: null
+            }));
+        } catch (err) {
+            // Backend rejected — show locked overlay, do NOT change currentLevel
+            if (err.response?.status === 403 && err.response?.data?.locked) {
+                setGameState(prev => ({
+                    ...prev,
+                    lockedMessage: err.response.data.message,
+                    decoyMessage: null
+                }));
+            }
+        }
     };
 
     const useHint = async (level) => {
@@ -97,60 +113,32 @@ export const GameProvider = ({ children }) => {
         }
     };
 
-    const submitAnswer = async (answer, username) => {
-        const currentClue = clues.find(c => c.level === gameState.currentLevel);
-        if (!currentClue) return { success: false, message: 'Clue not found' };
-
+    const submitAnswer = async (answer) => {
         try {
-            // Verify with backend securely
+            // verify-answer handles: sequential lock, answer check, level advance, score update — all in one call
             const verifyRes = await api.post('/game/verify-answer', {
-                answer: answer,
+                answer,
                 level: gameState.currentLevel
             });
 
-            const isCorrect = verifyRes.data.success;
+            const { success, clueText, nextLevel, finished } = verifyRes.data;
 
-            if (isCorrect) {
-                const revealedClue = verifyRes.data.clueText;
-
-                // Re-fetch or filter published clues to get the latest count
-                const sortedClues = [...clues]
-                    .filter(c => user.role === 'admin' || c.published)
-                    .sort((a, b) => a.level - b.level);
-
-                const currentIndex = sortedClues.findIndex(c => c.level === gameState.currentLevel);
-                const isFinished = currentIndex === sortedClues.length - 1;
-
-                const nextClue = isFinished ? null : sortedClues[currentIndex + 1];
-                const nextLevel = isFinished ? gameState.currentLevel : nextClue.level;
+            if (success) {
                 const newScore = gameState.score + 100;
-
-                if (isFinished) {
-                    const timeTaken = Math.floor((Date.now() - gameState.startTime) / 1000);
-                    await api.post('/game/finish', { score: newScore, time: timeTaken });
-                    fetchData(); // Refresh leaderboard and teams
-                } else if (user) {
-                    // We advance the level in DB but keep the user on current screen to see the clue
-                    await api.post('/game/progress', {
-                        level: nextLevel,
-                        score: newScore,
-                        hintsUsed: gameState.hintsUsed
-                    });
+                if (finished) {
+                    fetchData(); // Refresh leaderboard
                 }
-
                 setGameState(prev => ({
                     ...prev,
-                    // We DON'T auto-advance currentLevel here so they can read the clue
-                    // They advance by scanning the next QR code
-                    status: isFinished ? 'finished' : 'playing',
+                    status: finished ? 'finished' : 'playing',
                     score: newScore,
-                    revealedClue: revealedClue
+                    revealedClue: clueText
+                    // currentLevel stays the same here — advances when user scans next QR
                 }));
-                return { success: true, finished: isFinished, clueText: revealedClue };
+                return { success: true, finished, clueText };
             }
             return { success: false };
         } catch (err) {
-            // Handle the sequential lock 403
             if (err.response?.status === 403 && err.response?.data?.locked) {
                 setGameState(prev => ({ ...prev, lockedMessage: err.response.data.message, decoyMessage: null }));
                 return { success: false, locked: true, message: err.response.data.message };

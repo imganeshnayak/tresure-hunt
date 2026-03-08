@@ -56,16 +56,17 @@ router.post('/progress', auth, async (req, res) => {
         if (!user) return res.status(404).json({ message: 'User not found' });
 
         // --- Sequential Lock Enforcement (Backend Guard) ---
-        // Admins bypass this. Regular users can only:
-        // 1. Start at level 1 (fresh start or reset)
-        // 2. Stay at their current level (relinking same station)
-        // 3. Advance to currentLevel + 1 (legitimate sequential progression)
+        // A user can only call /progress with:
+        // 1. level === 1  → fresh start / admin reset
+        // 2. level === user.currentLevel  → relinking the same station (no change)
+        // Level advancement (e.g. 1→2) ONLY happens through /verify-answer on correct answer.
         if (req.user.role !== 'admin') {
-            const isJumpingAhead = level > user.currentLevel + 1 && level !== 1;
-            if (isJumpingAhead) {
+            const isForwardJump = level > user.currentLevel;
+            const isFreshStart = level === 1;
+            if (isForwardJump && !isFreshStart) {
                 return res.status(403).json({
                     locked: true,
-                    message: `Station lock: cannot advance to level ${level} from level ${user.currentLevel}. Follow the mission sequence!`
+                    message: `Station lock: You must complete Location #${user.currentLevel} before scanning ahead!`
                 });
             }
         }
@@ -90,38 +91,56 @@ router.post('/progress', auth, async (req, res) => {
     }
 });
 
-// Verify Answer Securely (Now MCQ based)
+// Verify Answer Securely
 router.post('/verify-answer', auth, async (req, res) => {
     try {
         const { answer, level } = req.body;
         const clue = await Clue.findOne({ level });
         if (!clue) return res.status(404).json({ message: 'Clue not found' });
 
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
         // Sequential Lock: only admins can bypass level checking
         if (req.user.role !== 'admin') {
-            const user = await User.findById(req.user.id);
-            if (!user) return res.status(404).json({ message: 'User not found' });
             if (user.currentLevel !== level) {
                 return res.status(403).json({
                     locked: true,
-                    message: `Ye haven't earned the right to be here yet, pirate! You're still on Location #${user.currentLevel}. Follow the clues!`
+                    message: `Station lock: You're on Location #${user.currentLevel}. Follow the mission sequence!`
                 });
             }
         }
 
-        // Compare answer based on type
-        let isCorrect = false;
-        if (clue.type === 'text') {
-            isCorrect = answer && answer.trim().toLowerCase() === clue.mcqAnswer.trim().toLowerCase();
-        } else {
-            isCorrect = answer && answer.trim() === clue.mcqAnswer.trim();
+        // Compare answer — case-insensitive, whitespace-trimmed
+        const normalize = (s) => (s || '').trim().toLowerCase();
+        const isCorrect = normalize(answer) === normalize(clue.mcqAnswer);
+
+        if (!isCorrect) {
+            return res.json({ success: false });
         }
 
-        if (isCorrect) {
-            res.json({ success: true, clueText: clue.clueText });
+        // --- Correct answer: advance the user's level in the DB ---
+        // Find the next published clue after this one
+        const nextClue = await Clue.findOne({ level: { $gt: level }, published: true }).sort({ level: 1 });
+        const isFinished = !nextClue;
+
+        if (isFinished) {
+            user.status = 'finished';
+            user.finishTime = new Date();
+            user.score = user.score + 100;
         } else {
-            res.json({ success: false });
+            user.currentLevel = nextClue.level; // advance to the next real level
+            user.score = user.score + 100;
+            if (!user.startTime) user.startTime = new Date();
         }
+        await user.save();
+
+        res.json({
+            success: true,
+            clueText: clue.clueText,
+            nextLevel: isFinished ? null : nextClue.level,
+            finished: isFinished
+        });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

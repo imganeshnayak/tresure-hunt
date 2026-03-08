@@ -87,6 +87,27 @@ body::before {
   width: 100%;
 }
 
+.option-button {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  color: #ffffff;
+  padding: 1.5rem;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.option-button:hover {
+  background: rgba(255, 170, 0, 0.1);
+  border-color: var(--amber-gold);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(255, 170, 0, 0.15);
+}
+
 .gold-button {
   background: var(--amber-gold);
   color: #000;

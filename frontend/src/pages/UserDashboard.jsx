@@ -382,16 +382,8 @@ const UserDashboard = () => {
                                             {currentClue?.mcqOptions.map((option, index) => (
                                                 <button
                                                     key={index}
-                                                    className="premium-card"
+                                                    className="option-button"
                                                     onClick={() => handleOptionClick(option)}
-                                                    style={{
-                                                        padding: '1.5rem',
-                                                        cursor: 'pointer',
-                                                        textAlign: 'center',
-                                                        fontSize: '1rem',
-                                                        fontWeight: '600',
-                                                        background: 'transparent'
-                                                    }}
                                                 >
                                                     {option}
                                                 </button>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGame } from '../context/GameContext';
 import api from '../api';
-import { Users, BookOpen, Plus, Trash2, Eye, EyeOff, QrCode, X, Edit2, Save, Skull, ChevronUp, ChevronDown, GripVertical, RotateCcw } from 'lucide-react';
+import { Users, BookOpen, Plus, Trash2, Eye, EyeOff, QrCode, X, Edit2, Save, Skull, ChevronUp, ChevronDown, GripVertical, RotateCcw, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -123,6 +123,67 @@ const AdminDashboard = () => {
     };
 
     const toggleDecoyPublish = (d) => handleSaveDecoy({ ...d, published: !d.published });
+
+    const handleDownloadAllQRs = async () => {
+        const baseUrl = import.meta.env.VITE_FRONTEND_URL || window.location.origin;
+        const published = localClues.filter(c => c.published);
+        if (published.length === 0) {
+            alert('No published landmarks to download QR codes for.');
+            return;
+        }
+
+        // We render each QR onto a hidden canvas and download sequentially
+        const { QRCodeSVG } = await import('qrcode.react');
+        const { createRoot } = await import('react-dom/client');
+        const React = (await import('react')).default;
+
+        // Helper: render a QR SVG to a PNG blob
+        const renderQR = (url) => new Promise((resolve) => {
+            const container = document.createElement('div');
+            container.style.position = 'fixed';
+            container.style.left = '-9999px';
+            document.body.appendChild(container);
+
+            const root = createRoot(container);
+            root.render(React.createElement(QRCodeSVG, { value: url, size: 300, id: `qr-offscreen` }));
+
+            requestAnimationFrame(() => {
+                const svg = container.querySelector('svg');
+                if (!svg) { root.unmount(); document.body.removeChild(container); resolve(null); return; }
+                const svgData = new XMLSerializer().serializeToString(svg);
+                const canvas = document.createElement('canvas');
+                canvas.width = 300; canvas.height = 300;
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.onload = () => {
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, 300, 300);
+                    ctx.drawImage(img, 0, 0);
+                    canvas.toBlob(blob => {
+                        root.unmount();
+                        document.body.removeChild(container);
+                        resolve(blob);
+                    }, 'image/png');
+                };
+                img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+            });
+        });
+
+        for (let i = 0; i < published.length; i++) {
+            const clue = published[i];
+            const url = `${baseUrl}/dashboard?unlock=${clue._id}`;
+            const blob = await renderQR(url);
+            if (!blob) continue;
+            const link = document.createElement('a');
+            const shortQ = clue.mcqQuestion.replace(/\s+/g, '-').slice(0, 30).toLowerCase();
+            link.download = `qr-${i + 1}-${shortQ}.png`;
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            URL.revokeObjectURL(link.href);
+            // Stagger downloads so browser doesn't block them
+            await new Promise(r => setTimeout(r, 400));
+        }
+    };
 
     const handleDownloadQR = () => {
         const svg = document.getElementById('qr-svg-download');
@@ -271,7 +332,7 @@ const AdminDashboard = () => {
                                     Drag rows or use arrows to reorder. Changes are saved when you click Save Order.
                                 </p>
                             </div>
-                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
                                 {isDirty && (
                                     <motion.button
                                         initial={{ opacity: 0, scale: 0.9 }}
@@ -293,6 +354,14 @@ const AdminDashboard = () => {
                                 {saveStatus === 'error' && (
                                     <span style={{ color: '#ff4444', fontSize: '0.85rem', fontWeight: '600' }}>✗ Save failed</span>
                                 )}
+                                <button
+                                    className="gold-button"
+                                    onClick={handleDownloadAllQRs}
+                                    title="Download QR PNGs for all published landmarks"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)' }}
+                                >
+                                    <Download size={18} /> Download All QRs
+                                </button>
                                 <button className="gold-button" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }} onClick={handleAddClue}>
                                     <Plus size={20} /> New Landmark
                                 </button>

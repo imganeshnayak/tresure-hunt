@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -11,17 +12,34 @@ import QrScanner from '../components/QrScanner';
 const UserDashboard = () => {
     const {
         gameState,
-        currentClue,
-        leaderboard,
+        clues,
         startHunt,
         submitAnswer,
-        logout
+        leaderboard,
+        loading
     } = useGame();
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
+
+    const currentClue = clues.find(c => c.level === gameState.currentLevel);
+    const [searchParams, setSearchParams] = useSearchParams();
     const [isScanning, setIsScanning] = useState(false);
     const [elapsedTime, setElapsedTime] = useState(0);
     const [feedback, setFeedback] = useState(null);
     const [textAnswer, setTextAnswer] = useState('');
+
+    // Handle initial link scan (from phone camera)
+    useEffect(() => {
+        const unlock = searchParams.get('unlock');
+        if (unlock && !isNaN(unlock)) {
+            const level = parseInt(unlock);
+            // Only trigger if we aren't already on this level or if we just arrived
+            if (gameState.currentLevel !== level || gameState.status === 'idle') {
+                startHunt(level);
+                // Clear the param so it doesn't re-trigger on refresh
+                setSearchParams({}, { replace: true });
+            }
+        }
+    }, [searchParams, gameState.currentLevel, gameState.status, startHunt, setSearchParams]);
 
     useEffect(() => {
         let interval;
@@ -85,6 +103,19 @@ const UserDashboard = () => {
             }
         }
     };
+
+    if (loading) {
+        return (
+            <div className="flex-center" style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
+                <div style={{ textAlign: 'center' }}>
+                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} style={{ marginBottom: '2rem' }}>
+                        <Shield size={60} color="var(--amber-gold)" />
+                    </motion.div>
+                    <h2 className="pirate-font" style={{ color: 'var(--amber-gold)', fontSize: '2rem' }}>DECRYPTING NODE...</h2>
+                </div>
+            </div>
+        );
+    }
 
     if (gameState.status === 'finished') {
         return (
@@ -329,7 +360,7 @@ const UserDashboard = () => {
                             ) : (
                                 <div style={{ marginTop: '2rem' }}>
                                     <h3 style={{ fontSize: '2rem', fontWeight: '600', marginBottom: '3rem', lineHeight: '1.5', color: '#fff' }}>
-                                        "{currentClue?.mcqQuestion}"
+                                        {currentClue ? `"${currentClue.mcqQuestion}"` : "ACCESSING CLOUD DATA NODE..."}
                                     </h3>
 
                                     {currentClue?.type === 'text' ? (

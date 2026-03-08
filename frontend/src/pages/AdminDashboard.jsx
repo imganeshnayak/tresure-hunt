@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGame } from '../context/GameContext';
 import api from '../api';
-import { Users, BookOpen, Plus, Trash2, Eye, EyeOff, QrCode, X, Edit2, Save, Skull, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
+import { Users, BookOpen, Plus, Trash2, Eye, EyeOff, QrCode, X, Edit2, Save, Skull, ChevronUp, ChevronDown, GripVertical, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 
 const AdminDashboard = () => {
     const { logout } = useAuth();
-    const { clues, updateClue, deleteClue, allTeams, reorderClues } = useGame();
+    const { clues, updateClue, deleteClue, allTeams, reorderClues, refreshData } = useGame();
     const [activeTab, setActiveTab] = useState('clues');
     const [selectedQR, setSelectedQR] = useState(null);
     const [editingClue, setEditingClue] = useState(null);
@@ -70,6 +70,27 @@ const AdminDashboard = () => {
         setSaveStatus(success ? 'saved' : 'error');
         if (success) setIsDirty(false);
         setTimeout(() => setSaveStatus(null), 2500);
+    };
+
+    const handleDeleteUser = async (team) => {
+        if (!window.confirm(`Remove team "${team.username.toUpperCase()}" permanently? This cannot be undone.`)) return;
+        try {
+            await api.delete(`/users/${team._id}`);
+            // Refresh allTeams via refreshData
+            refreshData();
+        } catch (err) {
+            alert(`Failed to delete user: ${err.response?.data?.message || err.message}`);
+        }
+    };
+
+    const handleResetUser = async (team) => {
+        if (!window.confirm(`Reset "${team.username.toUpperCase()}"'s progress back to Level 1, Score 0?`)) return;
+        try {
+            await api.post(`/users/${team._id}/reset`);
+            refreshData();
+        } catch (err) {
+            alert(`Failed to reset user: ${err.response?.data?.message || err.message}`);
+        }
     };
 
     const handleSaveDecoy = async (d) => {
@@ -433,22 +454,24 @@ const AdminDashboard = () => {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.98 }}
                     >
-                        <h2 style={{ fontSize: '1.8rem', fontWeight: '700', marginBottom: '2rem' }}>Tracking the Fleet</h2>
+                        <h2 style={{ fontSize: '1.8rem', fontWeight: '700', marginBottom: '0.5rem' }}>Tracking the Fleet</h2>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '2rem' }}>Delete removes a team entirely. Reset clears their progress back to the start.</p>
                         <div className="premium-card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
                             <div style={{ overflowX: 'auto', width: '100%' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.95rem', minWidth: '600px' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.95rem', minWidth: '700px' }}>
                                     <thead style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid var(--glass-border)' }}>
                                         <tr>
                                             <th style={{ padding: '1.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>TEAM NAME</th>
                                             <th style={{ padding: '1.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>POSITION</th>
                                             <th style={{ padding: '1.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>START TIME</th>
                                             <th style={{ padding: '1.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>STATUS</th>
+                                            <th style={{ padding: '1.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>ACTIONS</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {allTeams.length === 0 ? (
                                             <tr>
-                                                <td colSpan="4" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No crew members on the horizon.</td>
+                                                <td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No crew members on the horizon.</td>
                                             </tr>
                                         ) : allTeams.map(team => (
                                             <tr key={team._id} style={{ borderBottom: '1px solid var(--glass-border)', transition: 'background 0.2s ease' }}>
@@ -468,6 +491,26 @@ const AdminDashboard = () => {
                                                     }}>
                                                         {team.status.toUpperCase()}
                                                     </span>
+                                                </td>
+                                                <td style={{ padding: '1rem 1.5rem' }}>
+                                                    <div style={{ display: 'flex', gap: '0.6rem' }}>
+                                                        <button
+                                                            title="Reset Progress"
+                                                            onClick={() => handleResetUser(team)}
+                                                            className="flex-center"
+                                                            style={{ width: '36px', height: '36px', background: 'rgba(255,170,0,0.05)', border: '1px solid rgba(255,170,0,0.2)', borderRadius: '8px', cursor: 'pointer', color: 'var(--amber-gold)' }}
+                                                        >
+                                                            <RotateCcw size={16} />
+                                                        </button>
+                                                        <button
+                                                            title="Delete User"
+                                                            onClick={() => handleDeleteUser(team)}
+                                                            className="flex-center"
+                                                            style={{ width: '36px', height: '36px', background: 'rgba(255,68,68,0.05)', border: '1px solid rgba(255,68,68,0.2)', borderRadius: '8px', cursor: 'pointer', color: '#ff4444' }}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}

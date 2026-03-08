@@ -49,27 +49,21 @@ export const GameProvider = ({ children }) => {
         fetchData();
     }, [user]);
 
-    const startHunt = async (level = 1) => {
-        const startTime = Date.now();
+    const startHunt = (level = 1) => {
+        // Only update LOCAL state when scanning a QR code.
+        // The backend currentLevel ONLY advances after a correct answer via /game/verify-answer.
+        // This prevents QR URL spoofing (scanning a later station's QR to skip ahead).
         setGameState(prev => ({
             ...prev,
-            startTime,
+            // Only set startTime on a fresh game start (when idle)
+            startTime: prev.startTime || Date.now(),
             status: 'playing',
             currentLevel: level,
-            hintsUsed: [],
+            hintsUsed: prev.hintsUsed || [],
             revealedClue: null,
             decoyMessage: null,
             lockedMessage: null
         }));
-
-        if (user) {
-            // Only reset score on a fresh start (idle), not when relinking
-            await api.post('/game/progress', {
-                level: level,
-                score: gameState.status === 'idle' ? 0 : gameState.score,
-                hintsUsed: gameState.status === 'idle' ? [] : gameState.hintsUsed
-            });
-        }
     };
 
     const useHint = async (level) => {

@@ -19,6 +19,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/clues', require('./routes/clues'));
 app.use('/api/game', require('./routes/game'));
 app.use('/api/decoys', require('./routes/decoys'));
+app.use('/api/users', require('./routes/users'));
 
 
 

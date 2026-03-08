@@ -55,9 +55,32 @@ router.post('/progress', auth, async (req, res) => {
         const user = await User.findById(req.user.id);
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        user.currentLevel = level;
-        user.score = score;
-        user.hintsUsed = hintsUsed;
+        // --- Sequential Lock Enforcement (Backend Guard) ---
+        // Admins bypass this. Regular users can only:
+        // 1. Start at level 1 (fresh start or reset)
+        // 2. Stay at their current level (relinking same station)
+        // 3. Advance to currentLevel + 1 (legitimate sequential progression)
+        if (req.user.role !== 'admin') {
+            const isJumpingAhead = level > user.currentLevel + 1 && level !== 1;
+            if (isJumpingAhead) {
+                return res.status(403).json({
+                    locked: true,
+                    message: `Station lock: cannot advance to level ${level} from level ${user.currentLevel}. Follow the mission sequence!`
+                });
+            }
+        }
+
+        // Only advance currentLevel, never go backwards (unless reset to 1)
+        if (level === 1 || level > user.currentLevel) {
+            user.currentLevel = level;
+        }
+        // Score can only grow, never silently decrease via this endpoint
+        if (level === 1) {
+            user.score = 0; // fresh start
+        } else if (score > user.score) {
+            user.score = score;
+        }
+        user.hintsUsed = hintsUsed || user.hintsUsed;
         if (!user.startTime) user.startTime = new Date();
 
         await user.save();

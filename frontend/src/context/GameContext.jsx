@@ -190,6 +190,17 @@ export const GameProvider = ({ children }) => {
         }
     };
 
+    const reorderClues = async (orderedIds) => {
+        try {
+            await api.post('/clues/reorder', { orderedIds });
+            await fetchData();
+            return true;
+        } catch (err) {
+            console.error('Reorder error:', err);
+            return false;
+        }
+    };
+
     const clearAlerts = () => {
         setGameState(prev => ({
             ...prev,
@@ -212,6 +223,7 @@ export const GameProvider = ({ children }) => {
             loading,
             updateClue,
             deleteClue,
+            reorderClues,
             clearAlerts,
             refreshData: fetchData
         }}>

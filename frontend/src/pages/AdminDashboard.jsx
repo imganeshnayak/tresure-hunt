@@ -2,24 +2,75 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useGame } from '../context/GameContext';
 import api from '../api';
-import { Users, BookOpen, Plus, Trash2, Eye, EyeOff, QrCode, X, Edit2, Save, Skull } from 'lucide-react';
+import { Users, BookOpen, Plus, Trash2, Eye, EyeOff, QrCode, X, Edit2, Save, Skull, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 
 const AdminDashboard = () => {
     const { logout } = useAuth();
-    const { clues, updateClue, deleteClue, allTeams } = useGame();
+    const { clues, updateClue, deleteClue, allTeams, reorderClues } = useGame();
     const [activeTab, setActiveTab] = useState('clues');
     const [selectedQR, setSelectedQR] = useState(null);
     const [editingClue, setEditingClue] = useState(null);
     const [decoys, setDecoys] = useState([]);
     const [editingDecoy, setEditingDecoy] = useState(null);
+    const [localClues, setLocalClues] = useState([]);
+    const [isDirty, setIsDirty] = useState(false);
+    const [saveStatus, setSaveStatus] = useState(null); // 'saving' | 'saved' | 'error'
+    const dragOverItem = React.useRef(null);
+    const dragItem = React.useRef(null);
 
     useEffect(() => {
         if (activeTab === 'decoys') {
             api.get('/decoys').then(res => setDecoys(res.data)).catch(() => { });
         }
     }, [activeTab]);
+
+    // Sync localClues with fetched clues (sorted by level)
+    useEffect(() => {
+        setLocalClues([...clues].sort((a, b) => a.level - b.level));
+        setIsDirty(false);
+    }, [clues]);
+
+    // --- Drag & Drop Handlers ---
+    const handleDragStart = (index) => {
+        dragItem.current = index;
+    };
+
+    const handleDragEnter = (index) => {
+        dragOverItem.current = index;
+        // Show visual feedback by reordering local state immediately
+        const newOrder = [...localClues];
+        const draggedItem = newOrder.splice(dragItem.current, 1)[0];
+        newOrder.splice(index, 0, draggedItem);
+        dragItem.current = index;
+        setLocalClues(newOrder);
+    };
+
+    const handleDragEnd = () => {
+        dragItem.current = null;
+        dragOverItem.current = null;
+        setIsDirty(true);
+    };
+
+    // Arrow-based reordering
+    const moveClue = (index, direction) => {
+        const newOrder = [...localClues];
+        const targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= newOrder.length) return;
+        [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
+        setLocalClues(newOrder);
+        setIsDirty(true);
+    };
+
+    const handleSaveOrder = async () => {
+        setSaveStatus('saving');
+        const orderedIds = localClues.map(c => c._id);
+        const success = await reorderClues(orderedIds);
+        setSaveStatus(success ? 'saved' : 'error');
+        if (success) setIsDirty(false);
+        setTimeout(() => setSaveStatus(null), 2500);
+    };
 
     const handleSaveDecoy = async (d) => {
         if (!d.label?.trim() || !d.message?.trim()) {
@@ -192,19 +243,77 @@ const AdminDashboard = () => {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.98 }}
                     >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                            <h2 style={{ fontSize: '1.8rem', fontWeight: '700' }}>Journey Landmarks</h2>
-                            <button className="gold-button" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }} onClick={handleAddClue}>
-                                <Plus size={20} /> New Landmark
-                            </button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+                            <div>
+                                <h2 style={{ fontSize: '1.8rem', fontWeight: '700' }}>Journey Landmarks</h2>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '0.3rem' }}>
+                                    Drag rows or use arrows to reorder. Changes are saved when you click Save Order.
+                                </p>
+                            </div>
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                {isDirty && (
+                                    <motion.button
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        className="gold-button"
+                                        onClick={handleSaveOrder}
+                                        disabled={saveStatus === 'saving'}
+                                        style={{ gap: '0.5rem' }}
+                                    >
+                                        <Save size={16} />
+                                        {saveStatus === 'saving' ? 'Saving...' : 'Save Order'}
+                                    </motion.button>
+                                )}
+                                {saveStatus === 'saved' && (
+                                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ color: '#4caf50', fontSize: '0.85rem', fontWeight: '600' }}>
+                                        ✓ Order saved!
+                                    </motion.span>
+                                )}
+                                {saveStatus === 'error' && (
+                                    <span style={{ color: '#ff4444', fontSize: '0.85rem', fontWeight: '600' }}>✗ Save failed</span>
+                                )}
+                                <button className="gold-button" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }} onClick={handleAddClue}>
+                                    <Plus size={20} /> New Landmark
+                                </button>
+                            </div>
                         </div>
 
                         <div style={{ display: 'grid', gap: '1.2rem' }}>
-                            {clues.map((clue) => (
-                                <div key={clue._id || clue.level} className="premium-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
-                                    <div>
+                            {localClues.map((clue, index) => (
+                                <div
+                                    key={clue._id || clue.level}
+                                    className="premium-card"
+                                    draggable
+                                    onDragStart={() => handleDragStart(index)}
+                                    onDragEnter={() => handleDragEnter(index)}
+                                    onDragEnd={handleDragEnd}
+                                    onDragOver={e => e.preventDefault()}
+                                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem', cursor: 'grab', transition: 'opacity 0.2s, box-shadow 0.2s' }}
+                                >
+                                    {/* Drag Handle + Order Controls */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                                        <button
+                                            title="Move Up"
+                                            onClick={() => moveClue(index, -1)}
+                                            disabled={index === 0}
+                                            style={{ background: 'transparent', border: 'none', cursor: index === 0 ? 'not-allowed' : 'pointer', color: index === 0 ? 'rgba(255,255,255,0.15)' : 'var(--text-secondary)', padding: '2px' }}
+                                        >
+                                            <ChevronUp size={16} />
+                                        </button>
+                                        <GripVertical size={16} color="rgba(255,255,255,0.2)" />
+                                        <button
+                                            title="Move Down"
+                                            onClick={() => moveClue(index, 1)}
+                                            disabled={index === localClues.length - 1}
+                                            style={{ background: 'transparent', border: 'none', cursor: index === localClues.length - 1 ? 'not-allowed' : 'pointer', color: index === localClues.length - 1 ? 'rgba(255,255,255,0.15)' : 'var(--text-secondary)', padding: '2px' }}
+                                        >
+                                            <ChevronDown size={16} />
+                                        </button>
+                                    </div>
+
+                                    <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.6rem' }}>
-                                            <span style={{ color: 'var(--amber-gold)', fontWeight: '800', fontSize: '0.9rem', letterSpacing: '1px' }}>LANDMARK {clue.level}</span>
+                                            <span style={{ color: 'var(--amber-gold)', fontWeight: '800', fontSize: '0.9rem', letterSpacing: '1px' }}>ORDER #{index + 1}</span>
                                             <span style={{
                                                 fontSize: '0.65rem',
                                                 color: clue.published ? '#4caf50' : 'var(--text-secondary)',
@@ -216,12 +325,12 @@ const AdminDashboard = () => {
                                                 {clue.published ? 'PUBLISHED' : 'DRAFT'}
                                             </span>
                                         </div>
-                                        <p style={{ fontWeight: '500', fontSize: '1.1rem', marginBottom: '0.4rem' }}>{clue.mcqQuestion}</p>
+                                        <p style={{ fontWeight: '500', fontSize: '1.1rem', marginBottom: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{clue.mcqQuestion}</p>
                                         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                                             <span style={{ color: 'var(--amber-gold)', opacity: 0.7 }}>Next Hint:</span> {clue.clueText}
                                         </p>
                                     </div>
-                                    <div style={{ display: 'flex', gap: '0.8rem' }}>
+                                    <div style={{ display: 'flex', gap: '0.8rem', flexShrink: 0 }}>
                                         <button onClick={() => setEditingClue(clue)} title="Edit" className="flex-center" style={{ width: '40px', height: '40px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '10px', cursor: 'pointer', color: 'var(--text-secondary)' }}>
                                             <Edit2 size={18} />
                                         </button>
@@ -243,7 +352,7 @@ const AdminDashboard = () => {
                                         </button>
                                         <button
                                             onClick={() => {
-                                                if (window.confirm(`Are you sure you want to delete Landmark ${clue.level}? This cannot be undone.`)) {
+                                                if (window.confirm(`Are you sure you want to delete this Landmark? This cannot be undone.`)) {
                                                     deleteClue(clue._id);
                                                 }
                                             }}

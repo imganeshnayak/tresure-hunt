@@ -26,6 +26,23 @@ router.get('/published', async (req, res) => {
     }
 });
 
+// Bulk reorder clues (Admin only)
+router.post('/reorder', auth, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access denied' });
+        const { orderedIds } = req.body; // Array of _id strings in new order
+        if (!Array.isArray(orderedIds)) return res.status(400).json({ message: 'orderedIds must be an array' });
+
+        const updates = orderedIds.map((id, index) =>
+            Clue.findByIdAndUpdate(id, { level: index + 1 }, { new: true })
+        );
+        await Promise.all(updates);
+        res.json({ message: 'Clues reordered successfully' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // Add/Update Clue
 router.post('/', async (req, res) => {
     try {

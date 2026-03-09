@@ -6,16 +6,17 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import UserDashboard from './pages/UserDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminLogin from './pages/AdminLogin';
 
 
-const ProtectedRoute = ({ children, role }) => {
+const ProtectedRoute = ({ children, role, redirectTo = "/login" }) => {
   const { user, loading } = useAuth();
 
   if (loading) return <div className="flex-center" style={{ height: '100vh' }}><h2 className="pirate-font">Loading...</h2></div>;
-  if (!user) return <Navigate to="/login" />;
+  if (!user) return <Navigate to={redirectTo} />;
   if (role && user.role !== role) {
-    // If user is logged in but has the wrong role, redirect to login to avoid confusion
-    return <Navigate to="/login" />;
+    // If user is logged in but has the wrong role, redirect to appropriate login
+    return <Navigate to={redirectTo} />;
   }
 
   return children;
@@ -29,6 +30,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
             <Route
               path="/dashboard"
               element={
@@ -40,7 +42,7 @@ function App() {
             <Route
               path="/admin"
               element={
-                <ProtectedRoute role="admin">
+                <ProtectedRoute role="admin" redirectTo="/admin/login">
                   <AdminDashboard />
                 </ProtectedRoute>
               }

@@ -13,7 +13,10 @@ const ProtectedRoute = ({ children, role }) => {
 
   if (loading) return <div className="flex-center" style={{ height: '100vh' }}><h2 className="pirate-font">Loading...</h2></div>;
   if (!user) return <Navigate to="/login" />;
-  if (role && user.role !== role) return <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} />;
+  if (role && user.role !== role) {
+    // If user is logged in but has the wrong role, redirect to login to avoid confusion
+    return <Navigate to="/login" />;
+  }
 
   return children;
 };

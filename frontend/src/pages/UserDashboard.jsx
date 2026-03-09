@@ -16,6 +16,7 @@ const UserDashboard = () => {
         startHunt,
         submitAnswer,
         scanDecoy,
+        useHint,
         leaderboard,
         loading,
         clearAlerts
@@ -25,6 +26,7 @@ const UserDashboard = () => {
     const currentClue = clues.find(c => c.level === gameState.currentLevel);
     const [searchParams, setSearchParams] = useSearchParams();
     const [isScanning, setIsScanning] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [elapsedTime, setElapsedTime] = useState(0);
     const [feedback, setFeedback] = useState(null);
     const [textAnswer, setTextAnswer] = useState('');
@@ -79,7 +81,9 @@ const UserDashboard = () => {
     };
 
     const handleOptionClick = async (option) => {
+        setIsSubmitting(true);
         const res = await submitAnswer(option);
+        setIsSubmitting(false);
         if (res.success) {
             setFeedback({ type: 'success', message: 'Transmission Verified!' });
             setTimeout(() => setFeedback(null), 3000);
@@ -92,7 +96,9 @@ const UserDashboard = () => {
     const handleTextSubmit = async (e) => {
         e.preventDefault();
         if (!textAnswer.trim()) return;
+        setIsSubmitting(true);
         const res = await submitAnswer(textAnswer.trim());
+        setIsSubmitting(false);
         if (res.success) {
             setFeedback({ type: 'success', message: 'Transmission Verified!' });
             setTextAnswer('');
@@ -122,7 +128,8 @@ const UserDashboard = () => {
         if (unlockRaw) {
             const level = resolveUnlockParam(unlockRaw);
             if (level !== null) {
-                startHunt(level);
+                setIsSubmitting(true);
+                startHunt(level).finally(() => setIsSubmitting(false));
                 setFeedback({ type: 'success', message: `Station Node Linked!` });
                 setTimeout(() => setFeedback(null), 3000);
             } else {
@@ -130,20 +137,32 @@ const UserDashboard = () => {
                 setTimeout(() => setFeedback(null), 3000);
             }
         } else if (decoyRaw) {
-            scanDecoy(decoyRaw.split('&')[0]);
+            setIsSubmitting(true);
+            scanDecoy(decoyRaw.split('&')[0]).finally(() => setIsSubmitting(false));
         } else {
             setFeedback({ type: 'error', message: 'That be no map I recognize!' });
             setTimeout(() => setFeedback(null), 3000);
         }
     };
 
+    const handleUseHint = async () => {
+        if (!currentClue?.hint) {
+            setFeedback({ type: 'error', message: 'No hint available for this station!' });
+            setTimeout(() => setFeedback(null), 3000);
+            return;
+        }
+        setIsSubmitting(true);
+        await useHint(gameState.currentLevel);
+        setIsSubmitting(false);
+    };
+
+    const hasHint = gameState.hintsUsed.includes(gameState.currentLevel);
+
     if (loading) {
         return (
             <div className="flex-center" style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
                 <div style={{ textAlign: 'center' }}>
-                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} style={{ marginBottom: '2rem' }}>
-                        <Shield size={60} color="var(--amber-gold)" />
-                    </motion.div>
+                    <div className="loader"></div>
                     <h2 className="pirate-font" style={{ color: 'var(--amber-gold)', fontSize: '2rem' }}>DECRYPTING NODE...</h2>
                 </div>
             </div>
@@ -355,7 +374,7 @@ const UserDashboard = () => {
                                 The grid is mapped. Locate the physical QR nodes to unlock mission data and progress through the levels.
                             </p>
                             <div style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
-                                <button className="gold-button" onClick={() => startHunt(1)} style={{ flex: 1.5, height: '60px' }}>
+                                <button className="gold-button" onClick={() => { setIsSubmitting(true); startHunt(1).finally(() => setIsSubmitting(false)); }} style={{ flex: 1.5, height: '60px' }}>
                                     INITIALIZE JOURNEY
                                 </button>
                                 <button
@@ -448,7 +467,18 @@ const UserDashboard = () => {
 
                                     <div style={{ display: 'flex', justifyContent: 'center', minHeight: '30px' }}>
                                         <AnimatePresence>
-                                            {feedback && (
+                                            {isSubmitting && (
+                                                <motion.div
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    exit={{ opacity: 0 }}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}
+                                                >
+                                                    <div className="loader" style={{ width: '20px', height: '20px', marginBottom: 0 }}></div>
+                                                    <span style={{ fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', fontSize: '0.9rem', color: 'var(--amber-gold)' }}>SENDING DATA...</span>
+                                                </motion.div>
+                                            )}
+                                            {feedback && !isSubmitting && (
                                                 <motion.div
                                                     initial={{ opacity: 0, y: 10 }}
                                                     animate={{ opacity: 1, y: 0 }}
@@ -461,6 +491,29 @@ const UserDashboard = () => {
                                             )}
                                         </AnimatePresence>
                                     </div>
+                                    {/* Hint Section */}
+                                    {!gameState.revealedClue && (
+                                        <div style={{ borderTop: '1px solid var(--glass-border)', marginTop: '2.5rem', paddingTop: '2rem' }}>
+                                            {hasHint ? (
+                                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ background: 'rgba(255, 170, 0, 0.05)', borderRadius: '12px', padding: '1.5rem', border: '1px solid var(--amber-gold)' }}>
+                                                    <p style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--amber-gold)', marginBottom: '0.5rem', letterSpacing: '1.5px' }}>STAFF HINT UNLOCKED</p>
+                                                    <p style={{ fontStyle: 'italic', color: 'var(--text-primary)', fontSize: '0.95rem' }}>"{currentClue?.hint || 'No extra info available...'}"</p>
+                                                </motion.div>
+                                            ) : (
+                                                <div style={{ textAlign: 'center' }}>
+                                                    <button
+                                                        onClick={handleUseHint}
+                                                        disabled={isSubmitting}
+                                                        style={{ background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', padding: '0.8rem 1.5rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                        onMouseOver={(e) => e.target.style.borderColor = 'var(--amber-gold)'}
+                                                        onMouseOut={(e) => e.target.style.borderColor = 'var(--glass-border)'}
+                                                    >
+                                                        NEED HELP? (-50 PTS)
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

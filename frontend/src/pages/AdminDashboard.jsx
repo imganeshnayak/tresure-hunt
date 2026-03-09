@@ -9,7 +9,18 @@ import { QRCodeSVG } from 'qrcode.react';
 
 const AdminDashboard = () => {
     const { logout } = useAuth();
-    const { clues, updateClue, deleteClue, allTeams, reorderClues, refreshData } = useGame();
+    const { clues, updateClue, deleteClue, allTeams, reorderClues, refreshData, loading } = useGame();
+
+    if (loading) {
+        return (
+            <div className="flex-center" style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
+                <div style={{ textAlign: 'center' }}>
+                    <div className="loader"></div>
+                    <h2 className="pirate-font" style={{ color: 'var(--amber-gold)', fontSize: '2rem' }}>PREPARING COMMAND CENTER...</h2>
+                </div>
+            </div>
+        );
+    }
     const [activeTab, setActiveTab] = useState('clues');
     const [selectedQR, setSelectedQR] = useState(null);
     const [editingClue, setEditingClue] = useState(null);
@@ -685,6 +696,16 @@ const AdminDashboard = () => {
                                         onChange={e => setEditingClue({ ...editingClue, clueText: e.target.value })}
                                         placeholder="Where should they go next?"
                                         style={{ minHeight: '80px', width: '100%', resize: 'none' }}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--amber-gold)', marginBottom: '0.8rem', display: 'block', letterSpacing: '1px' }}>OPTIONAL HINT (COSTS 50 POINTS)</label>
+                                    <textarea
+                                        className="input-field"
+                                        value={editingClue.hint || ''}
+                                        onChange={e => setEditingClue({ ...editingClue, hint: e.target.value })}
+                                        placeholder="Give a nudge if they're stuck..."
+                                        style={{ minHeight: '60px', width: '100%', resize: 'none' }}
                                     />
                                 </div>
 

@@ -72,8 +72,13 @@ const Login = () => {
                         />
                     </div>
 
-                    <button type="submit" className="gold-button" style={{ height: '56px', marginTop: '1rem', fontSize: '1rem' }} disabled={isLoggingIn}>
-                        {isLoggingIn ? 'DECRYPTING...' : 'AUTH_SESSION'}
+                    <button type="submit" className="gold-button" style={{ height: '56px', marginTop: '1rem', fontSize: '1rem', position: 'relative' }} disabled={isLoggingIn}>
+                        {isLoggingIn ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <div className="loader" style={{ width: '20px', height: '20px', borderSize: '2px', marginBottom: 0 }}></div>
+                                DECRYPTING...
+                            </div>
+                        ) : 'AUTH_SESSION'}
                     </button>
                 </form>
 

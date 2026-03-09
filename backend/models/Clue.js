@@ -7,6 +7,7 @@ const clueSchema = new mongoose.Schema({
     mcqOptions: [{ type: String }],
     mcqAnswer: { type: String, required: true },
     clueText: { type: String, required: true },
+    hint: { type: String, default: '' },
     published: { type: Boolean, default: false }
 }, { timestamps: true });
 
